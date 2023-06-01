@@ -18,12 +18,10 @@ headers = {
 }
 
 r = requests.get('https://api.planetterp.com/v1/grades', headers = headers, params={
-      'course': 'ENGL101',
-      'professor': 'William Pittman',
-      'semester': '202108'
+      'course': 'CMSC351'
 })
 
-#print(r.json())
+print(r.json())
 
 class Section:
   def __init__(self, class_name, section_num, gpa, days, time_start, time_end) -> None:
@@ -137,4 +135,5 @@ TODO
 2. Make conflict work w/ additional days + times
 3. Add score + sort
 4. Add more advanced weight selection
+5. Front-end
 """
