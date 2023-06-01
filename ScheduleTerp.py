@@ -1,5 +1,6 @@
 import random
 import requests
+import re
 
 headers = {
   'Accept': 'application/json'
@@ -18,34 +19,39 @@ headers = {
 }
 
 r = requests.get('https://api.planetterp.com/v1/grades', headers = headers, params={
-      'course': 'CMSC351'
+      'course': 'ENGL101',
+      'professor': 'William Pittman',
+      'semester': '202108'
 })
 
-print(r.json())
+#print(r.json())
+
+r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+  'course_id': 'CMSC330'
+})
+#print(r.json()[0])
+
 
 class Section:
-  def __init__(self, class_name, section_num, gpa, days, time_start, time_end) -> None:
-    self.class_name = class_name
-    self.section_num = section_num
-    self.gpa = gpa
-    self.weight = 0
-    self.days = days
-    self.time_start = time_start
-    self.time_end = time_end
+  def __init__(self, section_dict : dict) -> None:
+    self.class_name = section_dict['course']
+    self.section_num = section_dict['number']
+    self.raw_meetings = []
     
-  def __init__(self, class_name, section_num, gpa, time) -> None:
-    """
-    Dummy initializer
-    """
-    self.class_name = class_name
-    self.section_num = section_num
-    self.gpa = gpa
-    self.time = time
-    self.weight = 0
+    meetings = section_dict['meetings']
+    for meeting in meetings:
+      days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
+      for day in days:
+        start_time = self.__get_raw_time(meeting['start_time'], day)
+        end_time = self.__get_raw_time(meeting['end_time'], day)
+        self.raw_meetings.append((start_time, end_time))
+    
+    # TODO Set GPA from PlanetTerp
+    self.gpa = -1
     
   def conflicts_with_section(self, other : 'Section') -> bool:
-    # Simplified conflicts
-    return self.time == other.time or self.class_name == other.class_name
+    # True conflicts
+    return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
     
   def conflicts_with_schedule(self, partial_schedule) -> bool:
     result = False
@@ -57,12 +63,31 @@ class Section:
         break
     
     return result
+
+  def __get_raw_time(self, time : str, day : str):
+    day_converter = {'M': 0, 'Tu': 1, 'W': 2, 'Th' : 3, 'F': 4}
+    hh, mm = map(int, time[:-2].split(':'))
+    raw_time = hh + (mm / 60.0) + day_converter[day] * 24
+    return raw_time
   
   def __str__(self) -> str:
-    return self.class_name + " " + str(self.section_num) + " " + str(self.gpa) + " " + str(self.time)
+    # TODO maybe add nicely formated day/time
+    return self.class_name + " " + str(self.section_num) + " " + str(self.gpa)
   
-        
-  
+
+mySection = Section(r.json()[0])
+print(mySection)
+
+print(mySection.raw_meetings)
+print(mySection.conflicts_with_section(mySection)) 
+
+r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+  'course_id': 'ENES424'
+})
+
+secondSection = Section(r.json()[0])
+
+print(mySection.conflicts_with_section(secondSection))
 
 def score_and_sort_schedules(all_schedules):
   pass
@@ -120,19 +145,21 @@ def scheduling_algorithm():
     
   score_and_sort_schedules(all_schedules)
   string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
-  print(string_schedules)
+  #print(string_schedules)
 
 def main():
   # call to algorithm
-  scheduling_algorithm()
+  #scheduling_algorithm()
+  pass
 
 if __name__ == '__main__':
   main()
 
 """
 TODO
-1. Get our input from UMD IO + PlanetTerp
-2. Make conflict work w/ additional days + times
+Done - 1. Make conflict work w/ additional days + times
+1. Set GPA
+2. Get our input from UMD IO + PlanetTerp
 3. Add score + sort
 4. Add more advanced weight selection
 5. Front-end
