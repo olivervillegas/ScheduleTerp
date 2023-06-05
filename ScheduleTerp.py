@@ -25,26 +25,23 @@ r = requests.get('https://api.planetterp.com/v1/grades', headers = headers, para
       'semester': '202108'
 })
 
-#print(r.json())
 
 r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
   'course_id': 'CMSC330'
 })
-#print(r.json()[0])
 
 
 class Section:
-  def __init__(self, section_dict : dict) -> None:
-    self.class_name = section_dict['course']
-    self.section_num = section_dict['number']
+  def __init__(self, section_dict : dict, grades_dict : dict) -> None:
+    self.class_name   = section_dict['course']
+    self.section_num  = section_dict['number']
+    self.instructors  = section_dict['instructors']
     self.raw_meetings = []
     self.start_times = []
 
     my_lectures = []
     meetings = section_dict['meetings']
     for meeting in meetings:
-      if (meeting['classtype'] != 'Discussion'):
-        my_lectures.append(meeting)
       days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
       for day in days:
         self.start_times.append(meeting['start_time'])
@@ -52,7 +49,6 @@ class Section:
         raw_end_time = self.__get_raw_time(meeting['end_time'], day)
         self.raw_meetings.append((raw_start_time, raw_end_time))
         
-    
     self.lectures = []
     for lecture in my_lectures:
       self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) + "-" + str(lecture['end_time']))
@@ -61,8 +57,11 @@ class Section:
       self.lectures = self.lectures[0]
       
     # TODO Set GPA from PlanetTerp
-    self.gpa = (random.random() + 0.0001) * 4
-    
+    if len(section_dict['instructors']) == 1:
+      self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
+    else:
+      pass
+
   def conflicts_with_section(self, other : 'Section') -> bool:
     # True conflicts
     return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
@@ -78,6 +77,27 @@ class Section:
     
     return result
 
+  def __get_gpa_given_prof(self, prof : str, grades_dict):
+    past_sections = [d for d in grades_dict if d.get('professor') == prof]
+    GPA_weights   = [4.0,4.0,3.7, 3.3,3.0,2.7, 2.3,2.0,1.7, 1.3,1.0,0.7, 0.0]
+    grades        = [0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0]
+    for section in past_sections:
+      grades[0]  += section['A+']
+      grades[1]  += section['A']
+      grades[2]  += section['A-']
+      grades[3]  += section['B+']
+      grades[4]  += section['B']
+      grades[5]  += section['B-']
+      grades[6]  += section['C+']
+      grades[7]  += section['C']
+      grades[8]  += section['C-']
+      grades[9]  += section['D+']
+      grades[10] += section['D']
+      grades[11] += section['D-']
+      grades[12] += section['F']
+    
+    return sum([GPA_weights[i] * grades[i] for i in range(len(grades))]) / sum(grades)
+
   def __get_raw_time(self, time : str, day : str):
     day_converter = {'M': 0, 'Tu': 1, 'W': 2, 'Th' : 3, 'F': 4}
     hh, mm = map(int, time[:-2].split(':'))
@@ -89,12 +109,17 @@ class Section:
     return self.class_name + " " + str(self.section_num) + " " + str(self.gpa) + " " + str(self.lectures)
   
 
-mySection = Section(r.json()[0])
+mySection = Section(r.json()[0], pltp_r)
+print(mySection)
+
+print(mySection.raw_meetings)
+print(mySection.conflicts_with_section(mySection)) 
+
 r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
   'course_id': 'ENES424'
 })
 
-secondSection = Section(r.json()[0])
+secondSection = Section(r.json()[0], pltp_r)
 
 
 def sig(x):
@@ -188,7 +213,6 @@ def scheduling_algorithm():
         if section_s.conflicts_with_schedule(running_schedule) or any([x == potential_schedule for x in all_schedules]) or any([x == potential_schedule for x in conflicting_schedules]):
           section_s.weight = 0
         else:
-          # TODO 4. Set more advanced weight here
           section_s.weight = section_s.gpa
           all_weights_0 = False
           
@@ -198,7 +222,6 @@ def scheduling_algorithm():
         break
       
       # add randomly selected section s in i to running_schedule
-      my_weights = [section.weight for section in class_i]
       running_schedule.add(random.choices(class_i, [section.weight for section in class_i], k=1)[0])
     if (len(running_schedule) == len(classes)):
       # Only add the newly generated schedule if we didn't break early.
@@ -206,20 +229,21 @@ def scheduling_algorithm():
     
   score_and_sort_schedules(all_schedules)
   string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
-  print(string_schedules)
+  #print(string_schedules)
 
 def main():
   # call to algorithm
-  scheduling_algorithm()
-  
+  #scheduling_algorithm()
+  pass
 
 if __name__ == '__main__':
   main()
 
 """
 TODO
-Done - Make conflict work w/ additional days + times
+Done - 1. Make conflict work w/ additional days + times
 1. Set GPA
+  1.5. Make GPA work for multiple professors in one class
 2. Get our input from UMD IO + PlanetTerp
 3. Add score + sort
 4. Add more advanced weight selection
