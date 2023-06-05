@@ -1,6 +1,7 @@
 import random
 import requests
 import re
+import numpy as np
 
 headers = {
   'Accept': 'application/json'
@@ -37,6 +38,7 @@ class Section:
     self.class_name = section_dict['course']
     self.section_num = section_dict['number']
     self.raw_meetings = []
+    self.start_times = []
 
     my_lectures = []
     meetings = section_dict['meetings']
@@ -45,9 +47,11 @@ class Section:
         my_lectures.append(meeting)
       days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
       for day in days:
-        start_time = self.__get_raw_time(meeting['start_time'], day)
-        end_time = self.__get_raw_time(meeting['end_time'], day)
-        self.raw_meetings.append((start_time, end_time))
+        self.start_times.append(meeting['start_time'])
+        raw_start_time = self.__get_raw_time(meeting['start_time'], day)
+        raw_end_time = self.__get_raw_time(meeting['end_time'], day)
+        self.raw_meetings.append((raw_start_time, raw_end_time))
+        
     
     self.lectures = []
     for lecture in my_lectures:
@@ -92,14 +96,49 @@ r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, para
 
 secondSection = Section(r.json()[0])
 
-def score_and_sort_schedules(all_schedules : list[Section]):
+
+def sig(x):
+  # Modified sigmoid function so that it doesn't level off so fast.
+  return 1/(1 + np.exp(-1/10 * x))
+
+def score_schedule(schedule : list):
+  """Scores a schedule based on its GPA, the times of each class, and their relative times.
+
+  Args:
+      schedule (list): Schedule to score. It's a list of sections.
+
+  Returns:
+      int: the schedule's score
+  """
+  score = 0
+  start_time_score_reference = {"7:00am": 0, "7:30am": 0, "8:00am": 0, "8:30am": 0,
+                              "9:00am": 3, "9:30am": 4, "10:00am": 10, "10:30am": 10, 
+                              "11:00am": 10, "11:30am": 10, "12:00pm": 10, "12:30pm": 10,
+                              "1:00pm": 10, "1:30pm": 10, "2:00pm": 10, "2:30pm": 10,
+                              "3:00pm": 10,  "3:30pm": 10, "4:00pm": 9, "4:30pm": 8,
+                              "5:00pm": 7, "5:30pm": 6, "6:00pm": 5, "6:30pm": 4, 
+                              "7:00pm": 3, "7:30pm": 2, "8:00pm": 1, "8:30pm": 0,
+                              "9:00pm": 0, "9:30pm": 0, "10:00pm": 0, "10:30pm": 0}
+  
+  average_gpa_score = sig(sum([section.gpa for section in schedule]) / len(schedule))
+  
+  start_time_score = sig(sum([sum([start_time_score_reference[start_time] for start_time 
+                               in section.start_times]) for section in schedule]))
+  
+  relative_time_score = 0
+
+  weight_dict = {"average_gpa": 10, "start_time": 1}
+  
+  return average_gpa_score * weight_dict['average_gpa'] + start_time_score * weight_dict['start_time']
+
+def score_and_sort_schedules(all_schedules : list[list[Section]]):
   """Sorts all schedules from best to worst based on how good they are (subjective). For now, only take into account GPA.
 
   Args:
       all_schedules ([] : Section): The schedules to sort.
   """
   # Sort based on average GPA
-  all_schedules.sort(key = lambda schedule: sum([section.gpa for section in schedule]) / len(schedule))
+  all_schedules.sort(key = lambda schedule: score_schedule(schedule))
 
 def scheduling_algorithm():
   classes               = [[], [], []]
