@@ -37,13 +37,15 @@ class Section:
     my_lectures = []
     meetings = section_dict['meetings']
     for meeting in meetings:
+      if (meeting['classtype'] != 'Discussion'):
+        my_lectures.append(meeting)
       # Extract all days for a particular meeting
       days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
       for day in days:
         self.start_times.append(meeting['start_time'])
         raw_start_time = self.__get_raw_time(meeting['start_time'], day)
         raw_end_time = self.__get_raw_time(meeting['end_time'], day)
-        self.raw_meetings.append((raw_start_time, raw_end_time))
+        self.raw_meetings.extend([raw_start_time, raw_end_time])
         
     self.lectures = []
     for lecture in my_lectures:
@@ -59,8 +61,40 @@ class Section:
       pass
 
   def conflicts_with_section(self, other : 'Section') -> bool:
-    """Return true if this section conflicts with the other section."""
-    return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
+    """Return true if this section conflicts with the other section.
+    
+    Go through both section times in order until either a double start time 
+    (even index + even index) or double end time (odd index + odd index) occurs.
+    We can detect both by checking if the sum is even. This algorithm is O(n).
+    
+    Returns:
+        bool: Return true if the two sections conflict (can't schedule them
+        together).
+    """
+    result = False
+    my_index = 0
+    other_index = 0
+    last_index_checked = -1
+    while (my_index < len(self.raw_meetings) 
+           and other_index < len(other.raw_meetings)):
+      my_curr_meeting = self.raw_meetings[my_index]
+      other_curr_meeting = other.raw_meetings[other_index]
+      if (my_curr_meeting < other_curr_meeting):
+        if ((last_index_checked + my_index) % 2 == 0): 
+          result = True
+          break
+        last_index_checked = my_index
+        my_index += 1
+      else:
+        if ((last_index_checked + other_index) % 2 == 0): 
+          result = True
+          break
+        last_index_checked = other_index
+        other_index += 1
+        
+        
+    return result
+    #return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
     
   def conflicts_with_schedule(self, partial_schedule) -> bool:
     """Return true if this section conflicts with anything in the schedule."""
@@ -123,17 +157,19 @@ r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, para
   'course_id': 'CMSC330'
 })
 
-mySection = Section(r.json()[0], pltp_r)
-print(mySection)
+print(r.json())
 
-print(mySection.raw_meetings)
-print(mySection.conflicts_with_section(mySection)) 
+# mySection = Section(r.json()[0], pltp_r)
+# print(mySection)
 
-r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-  'course_id': 'ENES424'
-})
+# print(mySection.raw_meetings)
+# print(mySection.conflicts_with_section(mySection)) 
 
-secondSection = Section(r.json()[0], pltp_r)
+# r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+#   'course_id': 'ENES424'
+# })
+
+# secondSection = Section(r.json()[0], pltp_r)
 
 
 def sig(x):
@@ -248,7 +284,7 @@ def scheduling_algorithm():
 
 def main():
   # call to algorithm
-  #scheduling_algorithm()
+  scheduling_algorithm()
   pass
 
 if __name__ == '__main__':
