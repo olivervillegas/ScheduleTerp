@@ -46,7 +46,9 @@ class Section:
         raw_start_time = self.__get_raw_time(meeting['start_time'], day)
         raw_end_time = self.__get_raw_time(meeting['end_time'], day)
         self.raw_meetings.extend([raw_start_time, raw_end_time])
-        
+    
+    self.raw_meetings.sort()
+    
     self.lectures = []
     for lecture in my_lectures:
       self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) 
@@ -151,7 +153,8 @@ class Section:
     """Convert AM/PM time to hours since 12:00am on Monday and return it."""
     day_converter = {'M': 0, 'Tu': 1, 'W': 2, 'Th' : 3, 'F': 4}
     hh, mm = map(int, time[:-2].split(':'))
-    raw_time = hh + (mm / 60.0) + day_converter[day] * 24
+    am_or_pm_multiplier = 0 if time[-2:] == "am" or hh == 12 else 1
+    raw_time = hh + (mm / 60.0) + 12 * am_or_pm_multiplier + day_converter[day] * 24
     return raw_time
   
   def __str__(self) -> str:
@@ -334,13 +337,14 @@ def process_input(class_strings : list[str]):
 
 
 def main():
-  # call to algorithm
-  my_input = ["CMSC426", "CMSC425", "CMSC434", "ENGL393"]
+  print("Querying input from PlanetTerp and UMD.io...")
+  my_input = ["ENEE467", "ENME400", "ENME444", "ENME462"]
   classes = process_input(my_input)
-
+  
+  # NOTE: some HNUH classes are not in PlanetTerp
   print("Input processed!")
+  
   scheduling_algorithm(classes)
-  pass
 
 if __name__ == '__main__':
   main()
@@ -354,13 +358,13 @@ DONE- Get our input from UMD IO + PlanetTerp
 DONE- Add score + sort
   3.5. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
 4. Choose random GenEd, or Any, or DSNS/DSHU, etc.
-5. Add more advanced weight selection
+5. Add more advanced weight selection  ---  maybe consider 4 day week. Maybe ask questions about what people want
 6. Add course restrictions / classes filling up
 7. Only consider grade data of last 5 years (or 10 semesters)
 8. Front-end
 
 
-Long-term- "ScjheduleTerp+":
+Long-term- "ScheduleTerp+":
 1. ScheduleTerp (MVP) 
 2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation)
     2.5 UMD Sustainability fund
