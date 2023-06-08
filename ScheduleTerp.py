@@ -147,7 +147,7 @@ def score_schedule(schedule : list):
   
   average_gpa_score = sig(sum([section.gpa for section in schedule]) / len(schedule))
   
-  start_time_score = sig(sum([sum([start_time_score_reference[start_time] for start_time 
+  start_time_score  = sig(sum([sum([start_time_score_reference[start_time] for start_time 
                                in section.start_times]) for section in schedule]))
   
   relative_time_score = 0
