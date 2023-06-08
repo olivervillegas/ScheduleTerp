@@ -1,38 +1,33 @@
+#!/usr/bin/env python3
+"""Auto-generate UMD schedules. The algorithm is O(n), but it is sampled-based
+and thus not exact. Code is written for the ScheduleTerp website.
+"""
+
+__author__ = "Oliver Villegas, Jaxon Lee"
+__copyright__ = "Copyright 2023"
+__credits__ = ["Jet Lee"]
+__license__ = "MIT"
+__version__ = "0.1.0"
+__maintainer__ = "Oliver Villegas, Jaxon Lee"
+__email__ = "olivervillegas07@gmail.com, jaxondlee@gmail.com"
+__status__ = "Development"
+
 import random
 import requests
 import re
 import numpy as np
 
-headers = {
-  'Accept': 'application/json'
-}
-
-r = requests.get('https://api.planetterp.com/v1/professor', params={
-  'name': 'Larry Herman'
-}, headers = headers)
-
-#print(r.json())
-
-
-import requests
-headers = {
-  'Accept': 'application/json'
-}
-
-r = requests.get('https://api.planetterp.com/v1/grades', headers = headers, params={
-      'course': 'ENGL101',
-      'professor': 'William Pittman',
-      'semester': '202108'
-})
-
-
-r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-  'course_id': 'CMSC330'
-})
-
 
 class Section:
+  """Stores data for a section of a class.
+  """
   def __init__(self, section_dict : dict, grades_dict : dict) -> None:
+    """Initializes the section
+
+    Args:
+        section_dict (dict): section data from UMD.io API 
+        grades_dict (dict): grades data from PlanetTerp API
+    """
     self.class_name   = section_dict['course']
     self.section_num  = section_dict['number']
     self.instructors  = section_dict['instructors']
@@ -42,31 +37,67 @@ class Section:
     my_lectures = []
     meetings = section_dict['meetings']
     for meeting in meetings:
+      if (meeting['classtype'] != 'Discussion'):
+        my_lectures.append(meeting)
+      # Extract all days for a particular meeting
       days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
       for day in days:
         self.start_times.append(meeting['start_time'])
         raw_start_time = self.__get_raw_time(meeting['start_time'], day)
         raw_end_time = self.__get_raw_time(meeting['end_time'], day)
-        self.raw_meetings.append((raw_start_time, raw_end_time))
+        self.raw_meetings.extend([raw_start_time, raw_end_time])
         
     self.lectures = []
     for lecture in my_lectures:
-      self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) + "-" + str(lecture['end_time']))
+      self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) 
+                           + "-" + str(lecture['end_time']))
     
     if (len(self.lectures) == 1):
       self.lectures = self.lectures[0]
       
-    # TODO Set GPA from PlanetTerp
     if len(section_dict['instructors']) == 1:
       self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
     else:
       pass
 
   def conflicts_with_section(self, other : 'Section') -> bool:
-    # True conflicts
-    return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
+    """Return true if this section conflicts with the other section.
+    
+    Go through both section times in order until either a double start time 
+    (even index + even index) or double end time (odd index + odd index) occurs.
+    We can detect both by checking if the sum is even. This algorithm is O(n).
+    
+    Returns:
+        bool: Return true if the two sections conflict (can't schedule them
+        together).
+    """
+    result = False
+    my_index = 0
+    other_index = 0
+    last_index_checked = -1
+    while (my_index < len(self.raw_meetings) 
+           and other_index < len(other.raw_meetings)):
+      my_curr_meeting = self.raw_meetings[my_index]
+      other_curr_meeting = other.raw_meetings[other_index]
+      if (my_curr_meeting < other_curr_meeting):
+        if ((last_index_checked + my_index) % 2 == 0): 
+          result = True
+          break
+        last_index_checked = my_index
+        my_index += 1
+      else:
+        if ((last_index_checked + other_index) % 2 == 0): 
+          result = True
+          break
+        last_index_checked = other_index
+        other_index += 1
+        
+        
+    return result
+    #return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
     
   def conflicts_with_schedule(self, partial_schedule) -> bool:
+    """Return true if this section conflicts with anything in the schedule."""
     result = False
     # For each section in schedule, check if this conflicts. If any do, 
     # return true. Else return false.
@@ -78,6 +109,15 @@ class Section:
     return result
 
   def __get_gpa_given_prof(self, prof : str, grades_dict):
+    """Return the Professor's average GPA for this particular section.
+
+    Args:
+        prof (str): The professor to check
+        grades_dict (dict): grades data for the section
+
+    Returns:
+        float: The average GPA of the Professor.
+    """
     past_sections = [d for d in grades_dict if d.get('professor') == prof]
     GPA_weights   = [4.0,4.0,3.7, 3.3,3.0,2.7, 2.3,2.0,1.7, 1.3,1.0,0.7, 0.0]
     grades        = [0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0]
@@ -99,30 +139,41 @@ class Section:
     return sum([GPA_weights[i] * grades[i] for i in range(len(grades))]) / sum(grades)
 
   def __get_raw_time(self, time : str, day : str):
+    """Convert AM/PM time to hours since 12:00am on Monday and return it."""
     day_converter = {'M': 0, 'Tu': 1, 'W': 2, 'Th' : 3, 'F': 4}
     hh, mm = map(int, time[:-2].split(':'))
     raw_time = hh + (mm / 60.0) + day_converter[day] * 24
     return raw_time
   
   def __str__(self) -> str:
-    # TODO maybe add nicely formated day/time
+    """Return neat string representation of this section."""
     return self.class_name + " " + str(self.section_num) + " " + str(self.gpa) + " " + str(self.lectures)
   
-
-mySection = Section(r.json()[0], pltp_r)
-print(mySection)
-
-print(mySection.raw_meetings)
-print(mySection.conflicts_with_section(mySection)) 
+headers = {
+  'Accept': 'application/json'
+}
 
 r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-  'course_id': 'ENES424'
+  'course_id': 'CMSC330'
 })
 
-secondSection = Section(r.json()[0], pltp_r)
+print(r.json())
+
+# mySection = Section(r.json()[0], pltp_r)
+# print(mySection)
+
+# print(mySection.raw_meetings)
+# print(mySection.conflicts_with_section(mySection)) 
+
+# r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+#   'course_id': 'ENES424'
+# })
+
+# secondSection = Section(r.json()[0], pltp_r)
 
 
 def sig(x):
+  """Apply sigmoid function to x and return it."""
   # Modified sigmoid function so that it doesn't level off so fast.
   return 1/(1 + np.exp(-1/10 * x))
 
@@ -233,7 +284,7 @@ def scheduling_algorithm():
 
 def main():
   # call to algorithm
-  #scheduling_algorithm()
+  scheduling_algorithm()
   pass
 
 if __name__ == '__main__':
