@@ -3,14 +3,14 @@
 and thus not exact. Code is written for the ScheduleTerp website.
 """
 
-__author__ = "Oliver Villegas, Jaxon Lee"
-__copyright__ = "Copyright 2023"
-__credits__ = ["Jet Lee"]
-__license__ = "MIT"
-__version__ = "0.1.0"
+__author__     = "Oliver Villegas, Jaxon Lee"
+__copyright__  = "Copyright 2023"
+__credits__    = ["Jet Lee"]
+__license__    = "MIT"
+__version__    = "0.1.0"
 __maintainer__ = "Oliver Villegas, Jaxon Lee"
-__email__ = "olivervillegas07@gmail.com, jaxondlee@gmail.com"
-__status__ = "Development"
+__email__      = "j.oliver.vv@gmail.com, jaxondlee@gmail.com"
+__status__     = "Development"
 
 import random
 import requests
@@ -21,7 +21,7 @@ import numpy as np
 class Section:
   """Stores data for a section of a class.
   """
-  def __init__(self, section_dict : dict, grades_dict : dict) -> None:
+  def __init__(self, section_dict : dict, grades_dict : dict, course_gpa : float) -> None:
     """Initializes the section
 
     Args:
@@ -32,7 +32,7 @@ class Section:
     self.section_num  = section_dict['number']
     self.instructors  = section_dict['instructors']
     self.raw_meetings = []
-    self.start_times = []
+    self.start_times  = []
 
     my_lectures = []
     meetings = section_dict['meetings']
@@ -54,11 +54,20 @@ class Section:
     
     if (len(self.lectures) == 1):
       self.lectures = self.lectures[0]
-      
-    if len(section_dict['instructors']) == 1:
-      self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
-    else:
-      pass
+    
+    # Divide by zero occurs if professor doesn't exist
+    try:
+      if len(section_dict['instructors']) == 1:
+        self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
+      else:
+        for instructor in section_dict['instructors']:
+          # if profesor has no grada data
+            # return average GPA of course as a whole
+          pass
+          # else if professor has grade data
+        self.gpa = 1
+    except ZeroDivisionError:
+      self.gpa = course_gpa
 
   def conflicts_with_section(self, other : 'Section') -> bool:
     """Return true if this section conflicts with the other section.
@@ -77,7 +86,7 @@ class Section:
     last_index_checked = -1
     while (my_index < len(self.raw_meetings) 
            and other_index < len(other.raw_meetings)):
-      my_curr_meeting = self.raw_meetings[my_index]
+      my_curr_meeting    = self.raw_meetings[my_index]
       other_curr_meeting = other.raw_meetings[other_index]
       if (my_curr_meeting < other_curr_meeting):
         if ((last_index_checked + my_index) % 2 == 0): 
@@ -90,8 +99,7 @@ class Section:
           result = True
           break
         last_index_checked = other_index
-        other_index += 1
-        
+        other_index += 1 
         
     return result
     #return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
@@ -158,7 +166,7 @@ r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, para
   'course_id': 'CMSC330'
 })
 
-print(r.json())
+#print(r.json())
 
 # mySection = Section(r.json()[0], pltp_r)
 # print(mySection)
@@ -199,7 +207,7 @@ def score_schedule(schedule : list):
   
   average_gpa_score = sig(sum([section.gpa for section in schedule]) / len(schedule))
   
-  start_time_score = sig(sum([sum([start_time_score_reference[start_time] for start_time 
+  start_time_score  = sig(sum([sum([start_time_score_reference[start_time] for start_time 
                                in section.start_times]) for section in schedule]))
   
   relative_time_score = 0
@@ -217,31 +225,32 @@ def score_and_sort_schedules(all_schedules : list[list[Section]]):
   # Sort based on average GPA
   all_schedules.sort(key = lambda schedule: score_schedule(schedule))
 
-def scheduling_algorithm():
-  classes               = [[], [], []]
+def scheduling_algorithm(classes : list[list[Section]]):
+  #classes               = [[], [], []]
   all_schedules         = []
   conflicting_schedules = []
 
+
   # Test classes
-  r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-    'course_id': 'CMSC330'
-  })
-  for section_dict in r.json():
-    classes[0].append(Section(section_dict))
+  # r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+  #   'course_id': 'CMSC330'
+  # })
+  # for section_dict in r.json():
+  #   classes[0].append(Section(section_dict))
     
-  r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-    'course_id': 'ENES424'
-  })
-  for section_dict in r.json():
-    classes[1].append(Section(section_dict))
+  # r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+  #   'course_id': 'ENES424'
+  # })
+  # for section_dict in r.json():
+  #   classes[1].append(Section(section_dict))
   
 
-  r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-    'course_id': 'CMSC351'
-  })
+  # r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+  #   'course_id': 'CMSC351'
+  # })
   
-  for section_dict in r.json():
-    classes[2].append(Section(section_dict))
+  # for section_dict in r.json():
+  #   classes[2].append(Section(section_dict))
   
   # End test classes
   
@@ -281,11 +290,56 @@ def scheduling_algorithm():
     
   score_and_sort_schedules(all_schedules)
   string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
-  #print(string_schedules)
+  print(string_schedules)
+
+def process_input(class_strings : list[str]):
+  result = []
+  classes = []
+  grades  = []
+  average_gpas = []
+
+  
+  
+  #print("Input: " + str(class_strings))
+  
+  for one_class in class_strings:
+    classes.append(requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
+      'course_id': one_class
+      }).json())
+    grades.append(requests.get('https://api.planetterp.com/v1/grades', headers = headers, params={
+      'course': one_class
+      }).json())
+    average_gpas.append(requests.get('https://planetterp.com/api/v1/course', headers = headers, params={
+      'name': one_class
+      }).json()['average_gpa'])
+
+  for i in range(len(classes)):
+    section_arr = []
+    grade_dict = grades[i]
+
+    for section_dict in classes[i]:
+      section_arr.append(Section(section_dict, grade_dict, average_gpas[i]))
+
+    result.append(section_arr)
+    
+    
+  # result = [[Section() for i in range(len(one_class))] for one_class in classes]
+  # result = [[Section(array_of_grades_dicts[i], array_of_grades_dicts[i][j]) for j in range(array_of_grades_dicts[i])] for i in range(len(array_of_section_dicts))]  
+    
+  string_classes = [[str(section) for section in one_class] for one_class in result]
+  #print(string_classes)
+  return result
+  # Return list of classes, which are each lists of sections
+  
+
 
 def main():
   # call to algorithm
-  scheduling_algorithm()
+  my_input = ["CMSC426", "CMSC425", "CMSC434", "ENGL393"]
+  classes = process_input(my_input)
+
+  print("Input processed!")
+  scheduling_algorithm(classes)
   pass
 
 if __name__ == '__main__':
@@ -293,11 +347,22 @@ if __name__ == '__main__':
 
 """
 TODO
-Done - 1. Make conflict work w/ additional days + times
-1. Set GPA
+DONE- 1. Make conflict work w/ additional days + times
+DONE-  Set GPA
   1.5. Make GPA work for multiple professors in one class
-2. Get our input from UMD IO + PlanetTerp
-3. Add score + sort
-4. Add more advanced weight selection
-5. Front-end
+DONE- Get our input from UMD IO + PlanetTerp
+DONE- Add score + sort
+  3.5. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
+4. Choose random GenEd, or Any, or DSNS/DSHU, etc.
+5. Add more advanced weight selection
+6. Add course restrictions / classes filling up
+7. Only consider grade data of last 5 years (or 10 semesters)
+8. Front-end
+
+
+Long-term- "ScjheduleTerp+":
+1. ScheduleTerp (MVP) 
+2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation)
+    2.5 UMD Sustainability fund
+3. Franchise out to other universities
 """
