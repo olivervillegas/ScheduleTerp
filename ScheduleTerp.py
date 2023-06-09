@@ -301,10 +301,6 @@ def process_input(class_strings : list[str]):
   grades  = []
   average_gpas = []
 
-  
-  
-  #print("Input: " + str(class_strings))
-  
   for one_class in class_strings:
     classes.append(requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
       'course_id': one_class
@@ -321,24 +317,20 @@ def process_input(class_strings : list[str]):
     grade_dict = grades[i]
 
     for section_dict in classes[i]:
+      # TODO maybe add check if full
       section_arr.append(Section(section_dict, grade_dict, average_gpas[i]))
 
     result.append(section_arr)
     
-    
-  # result = [[Section() for i in range(len(one_class))] for one_class in classes]
-  # result = [[Section(array_of_grades_dicts[i], array_of_grades_dicts[i][j]) for j in range(array_of_grades_dicts[i])] for i in range(len(array_of_section_dicts))]  
-    
-  string_classes = [[str(section) for section in one_class] for one_class in result]
-  #print(string_classes)
   return result
-  # Return list of classes, which are each lists of sections
+  
   
 
 
 def main():
   print("Querying input from PlanetTerp and UMD.io...")
-  my_input = ["ENEE467", "ENME400", "ENME444", "ENME462"]
+  # TODO query data in the background
+  my_input = ["ANTH451", "CMSC425", "CMSC426", "CMSC436", "ENGL393"]
   classes = process_input(my_input)
   
   # NOTE: some HNUH classes are not in PlanetTerp
@@ -357,11 +349,14 @@ DONE-  Set GPA
 DONE- Get our input from UMD IO + PlanetTerp
 DONE- Add score + sort
   3.5. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
+  3.75.  Maybe consider 4 day week. Maybe ask questions about what people want
+  3.875. Add virtual meeting functionality
 4. Choose random GenEd, or Any, or DSNS/DSHU, etc.
-5. Add more advanced weight selection  ---  maybe consider 4 day week. Maybe ask questions about what people want
+5. Add more advanced weight selection 
 6. Add course restrictions / classes filling up
 7. Only consider grade data of last 5 years (or 10 semesters)
 8. Front-end
+9. Add "Gen ed" and other broader class types
 
 
 Long-term- "ScheduleTerp+":
