@@ -343,23 +343,27 @@ if __name__ == '__main__':
 
 """
 TODO
+# Alpha Version
 DONE- 1. Make conflict work w/ additional days + times
 DONE-  Set GPA
   1.5. Make GPA work for multiple professors in one class
 DONE- Get our input from UMD IO + PlanetTerp
 DONE- Add score + sort
-  3.5. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
-  3.75.  Maybe consider 4 day week. Maybe ask questions about what people want
-  3.875. Add virtual meeting functionality
+  3.5. Add virtual meeting functionality
 4. Choose random GenEd, or Any, or DSNS/DSHU, etc.
 5. Add more advanced weight selection 
-6. Add course restrictions / classes filling up
-7. Only consider grade data of last 5 years (or 10 semesters)
-8. Front-end
-9. Add "Gen ed" and other broader class types
+6. Front-end
+
+# Beta version
+1. Add user account data (classes taken so far, fine with 8am's)
+  1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
+2. Add boolean to exclude full classes 
+3. Only consider grade data of last 5 years (or 10 semesters)
+4. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
+  4.5. Maybe consider 4 day week. Maybe ask questions about what people want as inputs for ML model
 
 
-Long-term- "ScheduleTerp+":
+# Release versions
 1. ScheduleTerp (MVP) 
 2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation)
     2.5 UMD Sustainability fund
