@@ -46,7 +46,9 @@ class Section:
         raw_start_time = self.__get_raw_time(meeting['start_time'], day)
         raw_end_time = self.__get_raw_time(meeting['end_time'], day)
         self.raw_meetings.extend([raw_start_time, raw_end_time])
-        
+    
+    self.raw_meetings.sort()
+    
     self.lectures = []
     for lecture in my_lectures:
       self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) 
@@ -126,6 +128,7 @@ class Section:
     Returns:
         float: The average GPA of the Professor.
     """
+    # TODO account for W's here as well
     past_sections = [d for d in grades_dict if d.get('professor') == prof]
     GPA_weights   = [4.0,4.0,3.7, 3.3,3.0,2.7, 2.3,2.0,1.7, 1.3,1.0,0.7, 0.0]
     grades        = [0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0]
@@ -150,7 +153,8 @@ class Section:
     """Convert AM/PM time to hours since 12:00am on Monday and return it."""
     day_converter = {'M': 0, 'Tu': 1, 'W': 2, 'Th' : 3, 'F': 4}
     hh, mm = map(int, time[:-2].split(':'))
-    raw_time = hh + (mm / 60.0) + day_converter[day] * 24
+    am_or_pm_multiplier = 0 if time[-2:] == "am" or hh == 12 else 1
+    raw_time = hh + (mm / 60.0) + 12 * am_or_pm_multiplier + day_converter[day] * 24
     return raw_time
   
   def __str__(self) -> str:
@@ -297,10 +301,6 @@ def process_input(class_strings : list[str]):
   grades  = []
   average_gpas = []
 
-  
-  
-  #print("Input: " + str(class_strings))
-  
   for one_class in class_strings:
     classes.append(requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
       'course_id': one_class
@@ -317,49 +317,52 @@ def process_input(class_strings : list[str]):
     grade_dict = grades[i]
 
     for section_dict in classes[i]:
+      # TODO maybe add check if full
       section_arr.append(Section(section_dict, grade_dict, average_gpas[i]))
 
     result.append(section_arr)
     
-    
-  # result = [[Section() for i in range(len(one_class))] for one_class in classes]
-  # result = [[Section(array_of_grades_dicts[i], array_of_grades_dicts[i][j]) for j in range(array_of_grades_dicts[i])] for i in range(len(array_of_section_dicts))]  
-    
-  string_classes = [[str(section) for section in one_class] for one_class in result]
-  #print(string_classes)
   return result
-  # Return list of classes, which are each lists of sections
+  
   
 
 
 def main():
   # call to algorithm
+  # call to algorithm
   my_input = ["CMSC426", "CMSC425", "CMSC434", "ENGL393", "ANTH451"]
-  classes = process_input(my_input)
-
+  
+  # NOTE: some HNUH classes are not in PlanetTerp
   print("Input processed!")
+  
   scheduling_algorithm(classes)
-  pass
 
 if __name__ == '__main__':
   main()
 
 """
 TODO
+# Alpha Version
 DONE- 1. Make conflict work w/ additional days + times
 DONE-  Set GPA
   1.5. Make GPA work for multiple professors in one class
 DONE- Get our input from UMD IO + PlanetTerp
 DONE- Add score + sort
-  3.5. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
+  3.5. Add virtual meeting functionality
 4. Choose random GenEd, or Any, or DSNS/DSHU, etc.
-5. Add more advanced weight selection
-6. Add course restrictions / classes filling up
-7. Only consider grade data of last 5 years (or 10 semesters)
-8. Front-end
+5. Add more advanced weight selection 
+6. Front-end
+
+# Beta version
+1. Add user account data (classes taken so far, fine with 8am's)
+  1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
+2. Add boolean to exclude full classes 
+3. Only consider grade data of last 5 years (or 10 semesters)
+4. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
+  4.5. Maybe consider 4 day week. Maybe ask questions about what people want as inputs for ML model
 
 
-Long-term- "ScheduleTerp+":
+# Release versions
 1. ScheduleTerp (MVP) 
 2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation)
     2.5 UMD Sustainability fund
