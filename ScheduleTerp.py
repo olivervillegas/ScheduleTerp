@@ -329,8 +329,8 @@ def process_input(class_strings : list[str]):
 
 def main():
   # call to algorithm
-  # call to algorithm
   my_input = ["CMSC426", "CMSC425", "CMSC434", "ENGL393", "ANTH451"]
+  classes = process_input(my_input)
   
   # NOTE: some HNUH classes are not in PlanetTerp
   print("Input processed!")
