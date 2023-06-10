@@ -334,7 +334,7 @@ def process_input(class_strings : list[str]):
 
 def main():
   # call to algorithm
-  my_input = ["CMSC426", "CMSC425", "CMSC434", "ENGL393"]
+  my_input = ["CMSC426", "CMSC425", "CMSC434", "ENGL393", "ANTH451"]
   classes = process_input(my_input)
 
   print("Input processed!")
@@ -359,7 +359,7 @@ DONE- Add score + sort
 8. Front-end
 
 
-Long-term- "ScjheduleTerp+":
+Long-term- "ScheduleTerp+":
 1. ScheduleTerp (MVP) 
 2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation)
     2.5 UMD Sustainability fund
