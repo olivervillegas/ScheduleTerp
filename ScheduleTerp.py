@@ -50,14 +50,33 @@ class PlanetTerp(API):
         'course': course_dict['course_id']
           })
     except KeyError:
-      # Go through "formerly" known as
-      former_name = course_dict['relationships']['formerly'][:-1]
-      avg_gpa = API.request('https://planetterp.com/api/v1/course', params = {
-        'name': former_name
-        })['average_gpa']
-      grades_dict = API.request('https://api.planetterp.com/v1/grades', params = {
-        'course': former_name
+      try: 
+        # Go through "formerly" known as
+        former_name = course_dict['relationships']['formerly'][:-1]
+        avg_gpa = API.request('https://planetterp.com/api/v1/course', params = {
+          'name': former_name
+          })['average_gpa']
+        grades_dict = API.request('https://api.planetterp.com/v1/grades', params = {
+          'course': former_name
+          })
+      except: 
+        shortened_name = course_dict['course_id'][:-1]
+        similar_courses : dict = API.request('https://planetterp.com/api/v1/search', params = {
+          'query': shortened_name
         })
+        while (len(similar_courses) == 0):
+          shortened_name = shortened_name[:-1]
+          similar_courses : dict = API.request('https://planetterp.com/api/v1/search', params = {
+            'query': shortened_name
+          })
+        
+        similar_course_name = random.choice(similar_courses)['name']
+        avg_gpa = API.request('https://planetterp.com/api/v1/course', params = {
+          'name': similar_course_name
+          })['average_gpa']
+        grades_dict = API.request('https://api.planetterp.com/v1/grades', params = {
+          'course': similar_course_name
+          })
       
     return avg_gpa, grades_dict
         
@@ -66,7 +85,8 @@ class PlanetTerp(API):
 class UMDio(API):
   def get_courses_that_fulfill_gen_ed(gen_ed_name):
     return API.request('https://api.umd.io/v1/courses', params = {
-          'gen_ed': gen_ed_name
+          'gen_ed': gen_ed_name,
+          'per_page': 100
           })
   
   def get_sections(course_name):
@@ -115,19 +135,25 @@ class Section:
     if (len(self.lectures) == 1):
       self.lectures = self.lectures[0]
     
-    # Divide by zero occurs if professor doesn't exist
-    try:
-      if len(section_dict['instructors']) == 1:
-        self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
-      else:
-        for instructor in section_dict['instructors']:
-          # if profesor has no grada data
-            # return average GPA of course as a whole
-          pass
-          # else if professor has grade data
-        self.gpa = 1
-    except ZeroDivisionError:
+    if (grades_dict == None):
+      # 
       self.gpa = course_gpa
+    else:
+      # Divide by zero occurs if professor doesn't exist
+      try:
+        if ((section_dict['instructors']) == 1):
+          self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
+        else:
+          for instructor in section_dict['instructors']:
+            # if profesor has no grada data
+              # return average GPA of course as a whole
+            pass
+            # else if professor has grade data
+          self.gpa = 1
+      except ZeroDivisionError:
+        self.gpa = course_gpa
+    
+      
 
   def conflicts_with_section(self, other : 'Section') -> bool:
     """Return true if this section conflicts with the other section.
@@ -219,26 +245,6 @@ class Section:
     """Return neat string representation of this section."""
     return self.class_name + " " + str(self.section_num) + " " + str(self.gpa) + " " + str(self.lectures)
   
-
-
-r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-  'course_id': 'CMSC330'
-})
-
-#print(r.json())
-
-# mySection = Section(r.json()[0], pltp_r)
-# print(mySection)
-
-# print(mySection.raw_meetings)
-# print(mySection.conflicts_with_section(mySection)) 
-
-# r = requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-#   'course_id': 'ENES424'
-# })
-
-# secondSection = Section(r.json()[0], pltp_r)
-
 
 def sig(x):
   """Apply sigmoid function to x and return it."""
@@ -332,28 +338,30 @@ def process_input(class_strings : list[str]):
   grades  = []
   average_gpas = []
   
-  
-  
   for one_class in class_strings:
     match one_class:
       # Follow their request, but warn them that they could fulfill both Gen-Eds at once
       case "Any":
         pass
-      case "DSNS":
-        all_gen_ed_classes = UMDio.get_courses_that_fulfill_gen_ed("DSNS")
+      case 'FSAW' | 'FSAR' | 'FSMA' | 'FSOC' | 'DSHS' | 'DSHU' | "DSNS" | "DSNL" | 'DSSP' | 'DVCC' | 'DVUP' | 'SCIS':
+        # TODO improve speed
+        # TODO unify special + general case
+        all_gen_ed_classes = UMDio.get_courses_that_fulfill_gen_ed(one_class)
 
         gen_ed_sections = []
         for course in all_gen_ed_classes:
-          gen_ed_sections.append(UMDio.get_sections(course))
+          gen_ed_sections.extend(UMDio.get_sections(course['course_id']))
           
           avg_gpa, grade_dict = PlanetTerp.get_grades_from_course(course)
-          grades.append(grade_dict)
-          average_gpas.append(avg_gpa)
+          grades.extend(grade_dict)
+          
+        average_gpas.append(avg_gpa)
           
         classes.append(gen_ed_sections)
       case "DSHU":
         pass
       case _:
+        print(one_class)
         classes.append(requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
           'course_id': one_class,
           'per_page': 100
@@ -364,6 +372,7 @@ def process_input(class_strings : list[str]):
         average_gpas.append(requests.get('https://planetterp.com/api/v1/course', headers = headers, params={
           'name': one_class
           }).json()['average_gpa'])
+
 
   for i in range(len(classes)):
     section_arr = []
@@ -383,25 +392,17 @@ def process_input(class_strings : list[str]):
 def main():
   print("Querying input from PlanetTerp and UMD.io...")
   # TODO query data in the background
-  my_input = ["DSNS"]
+  my_input = ["FSAW", "MATH141", "CMSC132", "COMM107", "ANTH451"]
   classes = process_input(my_input)
-  string_schedules = [[str(section) for section in schedule] for schedule in classes]
-  print(string_schedules)
-  
-  
-  # r = requests.get('https://api.umd.io/v1/courses', headers=headers, params={
-  #         'gen_ed': 'DSNS',
-  #         'per_page': '100'
-  #         })
-  
-  # print(r.json())
+  # string_schedules = [[str(section) for section in schedule] for schedule in classes]
+  # print(string_schedules)
   
   # NOTE: some HNUH classes are not in PlanetTerp
   print("Input processed!")
   
-  #all_schedules = scheduling_algorithm(classes)
-  #string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
-  #print(string_schedules)
+  all_schedules = scheduling_algorithm(classes)
+  string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
+  print(string_schedules)
 
   # if (len(all_schedules) == 0):
   #   # TODO add some sort of error handling
@@ -418,8 +419,6 @@ DONE- 1. Make conflict work w/ additional days + times
 DONE-  Set GPA
   1.5. Make GPA work for multiple professors in one class
 DONE- Get our input from UMD IO + PlanetTerp
-DONE- Add score + sort
-4. Choose random GenEd, or Any, or DSNS/DSHU, etc.
 5. Add more advanced weight selection 
 6. Front-end
 
@@ -431,6 +430,11 @@ DONE- Add score + sort
 4. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
   4.5. Maybe consider 4 day week. Maybe ask questions about what people want as inputs for ML model
 5. Get all classes into program (HNUH, etc.) May need to talk to PlanetTerp or UMD.io
+6. Increase API call efficiency
+7. Store restrictions in Section object in score+sort, remove restricted schedules from list
+8. Choose random GenEd, or Any, or DSNS/DSHU, etc.
+  8.5. Add "CMSC4" for 400 level courses
+
 
 # Release versions
 1. ScheduleTerp (MVP) 
