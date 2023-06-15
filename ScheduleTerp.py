@@ -59,7 +59,8 @@ class PlanetTerp(API):
         grades_dict = API.request('https://api.planetterp.com/v1/grades', params = {
           'course': former_name
           })
-      except: 
+      except:
+        # Try to find a similar course if all else fails. 
         shortened_name = course_dict['course_id'][:-1]
         similar_courses : dict = API.request('https://planetterp.com/api/v1/search', params = {
           'query': shortened_name
@@ -136,7 +137,6 @@ class Section:
       self.lectures = self.lectures[0]
     
     if (grades_dict == None):
-      # 
       self.gpa = course_gpa
     else:
       # Divide by zero occurs if professor doesn't exist
@@ -358,20 +358,11 @@ def process_input(class_strings : list[str]):
         average_gpas.append(avg_gpa)
           
         classes.append(gen_ed_sections)
-      case "DSHU":
-        pass
       case _:
-        print(one_class)
-        classes.append(requests.get('https://api.umd.io/v1/courses/sections', headers=headers, params={
-          'course_id': one_class,
-          'per_page': 100
-          }).json())
-        grades.append(requests.get('https://api.planetterp.com/v1/grades', headers = headers, params={
-          'course': one_class
-          }).json())
-        average_gpas.append(requests.get('https://planetterp.com/api/v1/course', headers = headers, params={
-          'name': one_class
-          }).json()['average_gpa'])
+        classes.append(UMDio.get_sections(one_class))
+        avg_gpa, grade_dict = PlanetTerp.get_grades(one_class)
+        average_gpas.append(avg_gpa)
+        grades.append(grade_dict)
 
 
   for i in range(len(classes)):
@@ -392,7 +383,7 @@ def process_input(class_strings : list[str]):
 def main():
   print("Querying input from PlanetTerp and UMD.io...")
   # TODO query data in the background
-  my_input = ["FSAW", "MATH141", "CMSC132", "COMM107", "ANTH451"]
+  my_input = ["MATH141", "CMSC132", "COMM107", "ANTH451"]
   classes = process_input(my_input)
   # string_schedules = [[str(section) for section in schedule] for schedule in classes]
   # print(string_schedules)
