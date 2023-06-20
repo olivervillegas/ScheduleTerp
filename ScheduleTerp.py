@@ -408,7 +408,7 @@ def process_input(class_strings : list[str]):
   
 
 # JET -- CALL THIS FUNCTION FROM THE FRONT END
-def get_schedules(input_classes : list(str)):
+def get_schedules(input_classes : list[str]):
   classes = process_input(input_classes)
   all_schedules = scheduling_algorithm(classes)
   string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
@@ -423,16 +423,17 @@ def main():
   print("Querying input from PlanetTerp and UMD.io...")
   # TODO query data in the background
   my_input = ["MATH141", "CMSC132", "COMM107", "ANTH451"]
-  classes = process_input(my_input)
-  # string_schedules = [[str(section) for section in schedule] for schedule in classes]
+  # classes = process_input(my_input)
+  # # string_schedules = [[str(section) for section in schedule] for schedule in classes]
+  # # print(string_schedules)
+  
+  # # NOTE: some HNUH classes are not in PlanetTerp
+  # print("Input processed!")
+  
+  # all_schedules = scheduling_algorithm(classes)
+  # string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
   # print(string_schedules)
-  
-  # NOTE: some HNUH classes are not in PlanetTerp
-  print("Input processed!")
-  
-  all_schedules = scheduling_algorithm(classes)
-  string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
-  print(string_schedules)
+  print(get_schedules(my_input))
 
   # if (len(all_schedules) == 0):
   #   # TODO add some sort of error handling
