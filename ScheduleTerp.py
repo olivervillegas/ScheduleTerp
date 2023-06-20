@@ -33,7 +33,9 @@ class PlanetTerp(API):
     grades_dict = API.request('https://api.planetterp.com/v1/grades', params = {
       'course': course_name
     })
-    
+    # https://planetterp.com/api/v1/grades?course=cmsc330
+    # [{"course":"CMSC330","professor":"Chau-Wen Tseng","semester":"201201","section":"0101",
+    #   "A+":1,"A":2,"A-":4,"B+":4,"B":3,"B-":2,"C+":2,"C":6,"C-":0,"D+":0,"D":1,"D-":0,"F":1,"W":1,"Other":0}, ...]
     return avg_gpa, grades_dict
     
   def get_grades_from_course(course_dict):
@@ -90,7 +92,6 @@ class UMDio(API):
       'course_id': course_name,
       'per_page': 100
       })
-    
 
 class Section:
   """Stores data for a section of a class.
@@ -131,24 +132,11 @@ class Section:
     if (len(self.lectures) == 1):
       self.lectures = self.lectures[0]
     
-    if (grades_dict == None):
+    if (grades_dict == None or len(section_dict['instructors']) == 0):
       self.gpa = course_gpa
     else:
-      # Divide by zero occurs if professor doesn't exist
-      try:
-        if ((section_dict['instructors']) == 1):
-          self.gpa = self.__get_gpa_given_prof(section_dict['instructors'][0], grades_dict)
-        else:
-          for instructor in section_dict['instructors']:
-            # if profesor has no grada data
-              # return average GPA of course as a whole
-            pass
-            # else if professor has grade data
-          self.gpa = 1
-      except ZeroDivisionError:
-        self.gpa = course_gpa
+      self.gpa = self.__get_gpa_given_prof(section_dict['instructors'], grades_dict, fallback_gpa=course_gpa)
     
-      
 
   def conflicts_with_section(self, other : 'Section') -> bool:
     """Return true if this section conflicts with the other section.
@@ -183,8 +171,8 @@ class Section:
         other_index += 1 
         
     return result
-    #return any(not (other_interval[0] > interval[1] or other_interval[1] < interval[0]) for interval in self.raw_meetings for other_interval in other.raw_meetings)
-    
+
+
   def conflicts_with_schedule(self, partial_schedule) -> bool:
     """Return true if this section conflicts with anything in the schedule."""
     result = False
@@ -196,8 +184,33 @@ class Section:
         break
     
     return result
+  
+  def get_weight(self) -> float:
+      score = 0
+      start_time_score_reference = {"7:00am": 0, "7:30am": 0, "8:00am": 0, "8:30am": 0,
+                                  "9:00am": 3, "9:30am": 4, "10:00am": 10, "10:30am": 10, 
+                                  "11:00am": 10, "11:30am": 10, "12:00pm": 10, "12:30pm": 10,
+                                  "1:00pm": 10, "1:30pm": 10, "2:00pm": 10, "2:30pm": 10,
+                                  "3:00pm": 10,  "3:30pm": 10, "4:00pm": 9, "4:30pm": 8,
+                                  "5:00pm": 7, "5:30pm": 6, "6:00pm": 5, "6:30pm": 4, 
+                                  "7:00pm": 3, "7:30pm": 2, "8:00pm": 1, "8:30pm": 0,
+                                  "9:00pm": 0, "9:30pm": 0, "10:00pm": 0, "10:30pm": 0}
+      
+      gpa_score = sig(self.gpa)
+      
+      start_time_score = sum([start_time_score_reference[start_time] for 
+                              start_time in self.start_times])
+      
+      relative_time_score = 0
 
-  def __get_gpa_given_prof(self, prof : str, grades_dict):
+      weight_dict = {"average_gpa": 10, "start_time": 1}
+      
+      score = gpa_score * weight_dict['average_gpa'] + start_time_score * weight_dict['start_time'] 
+      
+      return score
+
+
+  def __get_gpa_given_prof(self, profs : list[str], grades_dict, fallback_gpa):
     """Return the Professor's average GPA for this particular section.
 
     Args:
@@ -207,10 +220,12 @@ class Section:
     Returns:
         float: The average GPA of the Professor.
     """
-    # TODO account for W's here as well
-    past_sections = [d for d in grades_dict if d.get('professor') == prof]
-    GPA_weights   = [4.0,4.0,3.7, 3.3,3.0,2.7, 2.3,2.0,1.7, 1.3,1.0,0.7, 0.0]
-    grades        = [0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0]
+    
+    # TODO Maybe change W to 0.5
+    past_sections = [section for section in grades_dict 
+                     if section.get('professor') in profs]
+    GPA_weights   = [4.0,4.0,3.7, 3.3,3.0,2.7, 2.3,2.0,1.7, 1.3,1.0,0.7, 0.0, 0.0]
+    grades        = [0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0,0.0,0.0, 0.0, 0.0]
     for section in past_sections:
       grades[0]  += section['A+']
       grades[1]  += section['A']
@@ -225,8 +240,13 @@ class Section:
       grades[10] += section['D']
       grades[11] += section['D-']
       grades[12] += section['F']
+      grades[13] += section['W']
     
-    return sum([GPA_weights[i] * grades[i] for i in range(len(grades))]) / sum(grades)
+    total_grades = sum(grades)
+    if (total_grades == 0):
+      return fallback_gpa
+    else:
+      return sum([GPA_weights[i] * grades[i] for i in range(len(grades))]) / total_grades
 
   def __get_raw_time(self, time : str, day : str):
     """Convert AM/PM time to hours since 12:00am on Monday and return it."""
@@ -269,6 +289,20 @@ def score_schedule(schedule : list):
   
   start_time_score  = sig(sum([sum([start_time_score_reference[start_time] for start_time 
                                in section.start_times]) for section in schedule]))
+  # add {time gap b/w classes} score 
+  # Add geographical distances b/w classes
+  # Add online vs in person
+  # Add prefence f/ 4 day week or consolidated
+  
+  # User Profiles--
+  # Commuter: consolidated, back to back... or doesn't care
+  # Part time job worker: doesn't care about consolidation, 
+  #   but wants certain parts of the day open
+  # "Class experience": in person, not consolidated
+  # Night owl: no classes before 11
+  # Freshman / Sophomore / Junior / Senior: 
+  # Only goes to lecture for exams: classes that don't require attendance
+  
   
   relative_time_score = 0
 
@@ -309,7 +343,7 @@ def scheduling_algorithm(classes : list[list[Section]]):
         if section_s.conflicts_with_schedule(running_schedule) or any([x == potential_schedule for x in all_schedules]) or any([x == potential_schedule for x in conflicting_schedules]):
           section_s.weight = 0
         else:
-          section_s.weight = section_s.gpa
+          section_s.weight = section_s.get_weight()
           all_weights_0 = False
           
       # if all other weights are 0, add to conflicting_schedules
@@ -372,7 +406,17 @@ def process_input(class_strings : list[str]):
     
   return result
   
+
+# JET -- CALL THIS FUNCTION FROM THE FRONT END
+def get_schedules(input_classes : list(str)):
+  classes = process_input(input_classes)
+  all_schedules = scheduling_algorithm(classes)
+  string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
   
+  # TODO return some sort of formatted data that works well with the 
+  # calendar library
+  return string_schedules
+
 
 
 def main():
@@ -403,16 +447,19 @@ TODO
 # Alpha Version
 DONE- 1. Make conflict work w/ additional days + times
 DONE-  Set GPA
-  1.5. Make GPA work for multiple professors in one class
+  DONE- 1.5. Make GPA work for multiple professors in one class
 DONE- Get our input from UMD IO + PlanetTerp
-5. Add more advanced weight selection 
+DONE- Add more advanced weight selection 
 6. Front-end
 
 # Beta version
+-1. Send algorithm to Professor Childs / Professor Mount to see if we can write an academic paper on it
+0. Draw out front-end using wireframing software
 1. Add user account data (classes taken so far, fine with 8am's)
   1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
 2. Add boolean to exclude full classes 
-3. Only consider grade data of last 5 years (or 10 semesters)
+  2.5 Discuss - recommend classes to waitlist? 
+3. Discuss - Only consider grade data of last 5 years (or 10 semesters)?
 4. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
   4.5. Maybe consider 4 day week. Maybe ask questions about what people want as inputs for ML model
 5. Get all classes into program (HNUH, etc.) May need to talk to PlanetTerp or UMD.io
@@ -422,9 +469,10 @@ DONE- Get our input from UMD IO + PlanetTerp
   8.5. Add "CMSC4" for 400 level courses
 
 
+
 # Release versions
 1. ScheduleTerp (MVP) 
-2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation)
+2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation, auto-register for classes)
     2.5 UMD Sustainability fund
 3. Franchise out to other universities
 """
