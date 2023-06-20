@@ -17,11 +17,6 @@ import requests
 import re
 import numpy as np
 
-
-headers = {
-  'Accept': 'application/json'
-}
-
 class API:
   headers = {
     'Accept': 'application/json'
