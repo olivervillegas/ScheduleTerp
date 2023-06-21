@@ -2,3 +2,5 @@ schedules.txt
 
 # Mac Thumbnail Viewer
 .DS_Store
+
+/env
