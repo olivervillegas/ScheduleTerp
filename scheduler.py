@@ -13,7 +13,6 @@ __email__      = "j.oliver.vv@gmail.com, jaxondlee@gmail.com"
 __status__     = "Development"
 
 import json
-import json
 import numpy as np
 from section import Section, score_and_sort_schedules
 from scheduling_algorithms.sampling_based_alg import sampling_based_method
