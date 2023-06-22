@@ -455,8 +455,8 @@ DONE- Add more advanced weight selection
 
 # Beta version
 -1. Send algorithm to Professor Childs / Professor Mount to see if we can write an academic paper on it
+  -0.5. Create variants: exact (CSP), Gibbs Sampling, Genetic
 0. Draw out front-end using wireframing software
-1. Add user account data (classes taken so far, fine with 8am's)
   1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
 2. Add boolean to exclude full classes 
   2.5 Discuss - recommend classes to waitlist? 
@@ -468,8 +468,84 @@ DONE- Add more advanced weight selection
 7. Store restrictions in Section object in score+sort, remove restricted schedules from list
 8. Choose random GenEd, or Any, or DSNS/DSHU, etc.
   8.5. Add "CMSC4" for 400 level courses
+9.1. Add user account data (classes taken so far, fine with 8am's)
+
+##Email to Professor:
+Hello Professor Childs,
+  
+I am Oliver Villegas, and I was in your CMSC451 class last semester. I ran into 
+a real-world problem that was reminiscent of a CMSC451 problem and I wanted to check with you
+to see if my answer is correct. Here is the Problem:
 
 
+### Chat GPT's Email
+Subject: Seeking Your Guidance on Algorithm Solution for Real-World Problem
+
+Dear Professor Childs,
+
+My name is Oliver Villegas, and I was in your CMSC451 class last semester. I
+write to you to ask for your guidance in evaluating an 
+algorithm solution I developed for a real-world problem. The problem shares 
+similarities with assignments we tackled in class, and I 
+believe your guidance would greatly contribute to validating the correctness and 
+efficiency of my solution.
+
+I have attached the details of the problem along with my algorithm implementation 
+for your convenience. I would greatly appreciate it if you could spare some time 
+to review my work and provide your valuable feedback. Your insights and suggestions 
+would be incredibly helpful in further refining my approach.
+
+Thank you for considering my request. I eagerly await your response and the opportunity to discuss my solution with you.
+
+Best regards,
+J. Oliver Villegas
+
+
+Consider the following scenario: A university counselor wants to determine the 
+"best" possible schedule of 5 class sections for a student. Each class section 
+s ∈ C is characterized by a professor P, an average GPA G, and a set of k class 
+time ranges from s to t {(s_1, t_1), ..., (s_k, t_k)}. It is crucial to note that 
+two sections with overlapping class times cannot be scheduled together. 
+Furthermore, the counselor wishes to evaluate the goodness of a schedule only when 
+all 5 classes are assigned. 
+
+Question:
+Design an algorithm that can assist the university counselor in solving this 
+issue. Provide a detailed explanation of the algorithm, including its steps 
+and any necessary data structures. Analyze the time complexity of the algorithm 
+and discuss its suitability for solving the problem efficiently.
+
+
+
+Algorithm: 
+First, we assume the counselor is not concerned about obtaining the exact best 
+schedule but rather a solution that is very close to the best.
+
+schedule_options = []
+Constant c times:
+  running_schedule = []
+  For i from 1..5:
+    Randomly select the most "good" section based on an estimator function from class i that:
+      - Doesn't create a schedule we've seen before
+      - doesn't conflict with classes in the existing schedule 
+    Add that class to the running_schedule
+  Add running_schedule to schedule_options
+Sort the schedules in schedule_options based on how "good" they are
+Return the best 20 schedules that the alg found
+
+Proof:
+
+
+Time Complexity: O(n)
+
+
+0. Problem
+1. Algorithm
+2. Proof of Correctness
+3. Time Complexity
+
+Thanks,
+J. Oliver Villegas
 
 # Release versions
 1. ScheduleTerp (MVP) 
