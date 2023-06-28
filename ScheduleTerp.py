@@ -12,6 +12,7 @@ __maintainer__ = "Oliver Villegas, Jaxon Lee"
 __email__      = "j.oliver.vv@gmail.com, jaxondlee@gmail.com"
 __status__     = "Development"
 
+import json
 import random
 import requests
 import re
@@ -311,6 +312,13 @@ class Section:
     """Return neat string representation of this section."""
     return self.class_name + " " + str(self.section_num) + " " + str(self.gpa) + " " + str(self.lectures)
   
+  def get_data(self):
+    d = {}
+    d['class_name'] = self.class_name
+    d['section_num'] = self.section_num
+    d['gpa'] = self.gpa
+    d['lectures']  = self.lectures
+    return d
 
 def sig(x):
   """Apply sigmoid function to x and return it."""
@@ -641,12 +649,11 @@ def process_input(class_strings : list[str], restrictions : list[str] = None):
 def get_schedules(input_classes : list[str]):
   classes = process_input(input_classes)
   all_schedules = genetic_method(classes)
-  string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
+  string_schedules = [[section.get_data() for section in schedule] for schedule in all_schedules]  # Array of schedules, which is an array of section objects
   
   # TODO return some sort of formatted data that works well with the 
   # calendar library
   return string_schedules
-
 
 
 def main():
@@ -664,7 +671,11 @@ def main():
   # all_schedules = scheduling_algorithm(classes)
   # string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
   # print(string_schedules)
-  print(get_schedules(my_input))
+  schedules = get_schedules(my_input)
+
+  with open('./schedules.txt', 'w') as convert_file:
+    convert_file.write(json.dumps(schedules))
+    print('Done')
 
   # if (len(all_schedules) == 0):
   #   # TODO add some sort of error handling
@@ -690,6 +701,7 @@ DONE- Add more advanced weight selection
 DONE- -2. Increase API call efficiency
   -1.5. Change json so that lectures are always array, add departmental GPA fallback, add restrictions
 -1. Send algorithm to Professor Childs / Professor Mount to see if we can write an academic paper on it
+  -0.5. Create variants: exact (CSP), Gibbs Sampling, Genetic, Annealing, Integer Linear Programming
 0. Draw out front-end using wireframing software
   1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
 2. Add boolean to exclude full classes 
