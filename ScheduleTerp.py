@@ -317,49 +317,60 @@ def sig(x):
   # Modified sigmoid function so that it doesn't level off so fast.
   return 1/(1 + np.exp(-1/10 * x))
 
-def score_schedule(schedule : list):
+def score_schedule(schedule : list[Section]):
   """Scores a schedule based on its GPA, the times of each class, and their relative times.
 
   Args:
       schedule (list): Schedule to score. It's a list of sections.
 
   Returns:
-      int: the schedule's score
+      float: the schedule's score
   """
   score = 0
-  start_time_score_reference = {"7:00am": 0, "7:30am": 0, "8:00am": 0, "8:30am": 0,
-                              "9:00am": 3, "9:30am": 4, "10:00am": 10, "10:30am": 10, 
-                              "11:00am": 10, "11:30am": 10, "12:00pm": 10, "12:30pm": 10,
-                              "1:00pm": 10, "1:30pm": 10, "2:00pm": 10, "2:30pm": 10,
-                              "3:00pm": 10,  "3:30pm": 10, "4:00pm": 9, "4:30pm": 8,
-                              "5:00pm": 7, "5:30pm": 6, "6:00pm": 5, "6:30pm": 4, 
-                              "7:00pm": 3, "7:30pm": 2, "8:00pm": 1, "8:30pm": 0,
-                              "9:00pm": 0, "9:30pm": 0, "10:00pm": 0, "10:30pm": 0}
-  
-  average_gpa_score = sig(sum([section.gpa for section in schedule]) / len(schedule))
-  
-  start_time_score  = sig(sum([sum([start_time_score_reference[start_time] for start_time 
-                               in section.start_times]) for section in schedule]))
-  # add {time gap b/w classes} score 
-  # Add geographical distances b/w classes
-  # Add online vs in person
-  # Add prefence f/ 4 day week or consolidated
-  
-  # User Profiles--
-  # Commuter: consolidated, back to back... or doesn't care
-  # Part time job worker: doesn't care about consolidation, 
-  #   but wants certain parts of the day open
-  # "Class experience": in person, not consolidated
-  # Night owl: no classes before 11
-  # Freshman / Sophomore / Junior / Senior: 
-  # Only goes to lecture for exams: classes that don't require attendance
-  
-  
-  relative_time_score = 0
+  #any([section1.conflicts_with_section(section2) for section2 in schedule if section2 != section1] for section1 in schedule)
+  # Check if schedule is possible before proceeding. If it's not possible, then 
+  # simply return 0.
+  is_possible_schedule = True
+  for section1 in schedule:
+    for section2 in schedule:
+      if (section1 != section2):
+        if (section1.conflicts_with_section(section2)):
+          is_possible_schedule = False
+          break
+  if (is_possible_schedule):
+    start_time_score_reference = {"7:00am": 0, "7:30am": 0, "8:00am": 0, "8:30am": 0,
+                                "9:00am": 3, "9:30am": 4, "10:00am": 10, "10:30am": 10, 
+                                "11:00am": 10, "11:30am": 10, "12:00pm": 10, "12:30pm": 10,
+                                "1:00pm": 10, "1:30pm": 10, "2:00pm": 10, "2:30pm": 10,
+                                "3:00pm": 10,  "3:30pm": 10, "4:00pm": 9, "4:30pm": 8,
+                                "5:00pm": 7, "5:30pm": 6, "6:00pm": 5, "6:30pm": 4, 
+                                "7:00pm": 3, "7:30pm": 2, "8:00pm": 1, "8:30pm": 0,
+                                "9:00pm": 0, "9:30pm": 0, "10:00pm": 0, "10:30pm": 0}
+    
+    average_gpa_score = sig(sum([section.gpa for section in schedule]) / len(schedule))
+    
+    start_time_score  = sig(sum([sum([start_time_score_reference[start_time] for start_time 
+                                in section.start_times]) for section in schedule]))
+    # add {time gap b/w classes} score 
+    # Add geographical distances b/w classes
+    # Add online vs in person
+    # Add prefence f/ 4 day week or consolidated
+    
+    # User Profiles--
+    # Commuter: consolidated, back to back... or doesn't care
+    # Part time job worker: doesn't care about consolidation, 
+    #   but wants certain parts of the day open
+    # "Class experience": in person, not consolidated
+    # Night owl: no classes before 11
+    # Freshman / Sophomore / Junior / Senior: 
+    # Only goes to lecture for exams: classes that don't require attendance
+    
+    
+    relative_time_score = 0
 
-  weight_dict = {"average_gpa": 10, "start_time": 1}
-  
-  return average_gpa_score * weight_dict['average_gpa'] + start_time_score * weight_dict['start_time']
+    weight_dict = {"average_gpa": 10, "start_time": 1}
+    score : float = average_gpa_score * weight_dict['average_gpa'] + start_time_score * weight_dict['start_time']
+  return score
 
 def score_and_sort_schedules(all_schedules : list[list[Section]]):
   """Sorts all schedules from best to worst based on how good they are (subjective). For now, only take into account GPA.
@@ -370,7 +381,155 @@ def score_and_sort_schedules(all_schedules : list[list[Section]]):
   # Sort based on average GPA
   all_schedules.sort(key = lambda schedule: score_schedule(schedule))
 
-def scheduling_algorithm(classes : list[list[Section]]):
+# Different Methods
+def genetic_method(classes: list[list[Section]]):
+  POPULATION_SIZE = 100
+  GENERATIONS = 100
+  MUTATION_RATE = 0.1
+  
+  # Generate an initial population of schedules
+  population = generate_initial_population(classes, POPULATION_SIZE)
+  
+  for generation in range(GENERATIONS):
+      # Evaluate the fitness of each schedule in the population
+      fitness_scores = evaluate_fitness(population)
+      
+      # Perform selection to choose parents for crossover
+      parents = selection(population, fitness_scores)
+      
+      # Create the next generation through crossover
+      offspring = crossover(parents)
+      
+      # Apply mutation to the offspring
+      mutated_offspring = mutation(offspring, MUTATION_RATE)
+      
+      # Replace the old population with the new generation
+      population = mutated_offspring
+  
+  # Sort the final population by fitness
+  population.sort(key=lambda x: evaluate_fitness([x])[0], reverse=True)
+  
+  # Return the schedules from the final population
+  return population
+
+def generate_initial_population(classes, population_size):
+  # TODO add functionality for population size
+  population = sampling_based_method(classes)
+  
+  population = [list(schedule) for schedule in population]
+  
+  return population
+
+def evaluate_fitness(population : list[list[Section]]):
+  fitness_scores = []
+  
+  for schedule in population:
+    # Calculate the fitness score for a schedule
+    fitness_score = calculate_fitness(schedule)
+    fitness_scores.append(fitness_score)
+  
+  return fitness_scores
+
+def calculate_fitness(schedule):
+  # Implement your own fitness function here
+  # This function should evaluate the quality of a schedule
+  # and return a fitness score
+  fitness_score = score_schedule(schedule)
+  
+  return fitness_score
+
+def selection(population, fitness_scores, tournament_size = 500):
+  # Implement your own selection method here
+  # This function should select parents from the population
+  # based on their fitness scores
+  parents = []
+  
+  for _ in range(len(population)):
+    # Randomly select individuals for the tournament
+    tournament = random.sample(range(len(population)), tournament_size)
+    
+    # Find the individual with the highest fitness score in the tournament
+    winner_index = max(tournament, key=lambda i: fitness_scores[i])
+    
+    # Add the winner to the parents list
+    parents.append(population[winner_index])
+  
+  return parents
+
+def crossover(parents):
+  # Implement your own crossover method here
+  # This function should create offspring schedules by
+  # combining the parents' schedules
+  offspring = []
+  
+  my_range = len(parents)
+  if (my_range % 2 == 1):
+    my_range -= 1  
+  for i in range(0, my_range, 2):
+    
+    parent1 : list[Section] = parents[i]
+    parent2 : list[Section] = parents[i+1]
+    # TODO give score of 0 to impossible schedules
+    # parent1 = [(ENES210 0101), (CMSC132 0101), (MATH141 0101), (AOSC200 0101)]
+    # parent2 = [(ENES210 0102), (CMSC132 0203), (MATH141 0201), (AOSC200 0301)]
+    # child1 = [(p1), (p1), (p1), (p2)]
+    # child2 = [(p2), (p2), (p2), (p1)]
+    
+    # Randomly select the crossover point
+    crossover_point = random.randint(1, len(parent1) - 1)
+    
+    # Create the offspring by swapping sections between parents
+    child1 = parent1[:crossover_point] + parent2[crossover_point:]
+    child2 = parent2[:crossover_point] + parent1[crossover_point:]
+    
+    # Add the offspring to the list
+    offspring.append(child1)
+    offspring.append(child2)
+    
+  return offspring
+
+def mutation(offspring, mutation_rate):
+  # Implement your own mutation method here
+  # This function should introduce random changes to the
+  # offspring schedules based on the mutation rate
+  mutated_offspring = []
+    
+  for schedule in offspring:
+    mutated_schedule : list[Section] = schedule.copy()
+    
+    for section in mutated_schedule:
+      # Generate a random number between 0 and 1
+      random_value = random.random()
+      
+      if random_value < mutation_rate:
+        # Replace the section with a random section
+        mutated_section = get_random_section(section)
+        insert_index = mutated_schedule.index(section)
+        mutated_schedule.remove(section)
+        mutated_schedule.insert(insert_index, mutated_section)
+    
+    mutated_offspring.append(mutated_schedule)
+    
+  return mutated_offspring
+
+data = {}
+with open("./custom_data_dump_3.json", "r") as f:
+  data = json.load(f)
+  
+def get_random_section(section_to_replace : Section):
+  random_section = random.choice(data[section_to_replace.class_name])
+  
+  return random_section
+  
+
+def constraint_satisfaction_problem_method(classes: list[list[Section]]):
+  pass
+
+def annealing_method(classes: list[list[Section]]):
+  pass
+
+# Original method
+def sampling_based_method(classes : list[list[Section]]):
   all_schedules         = []
   conflicting_schedules = []
   
@@ -412,7 +571,7 @@ def scheduling_algorithm(classes : list[list[Section]]):
 
   return all_schedules
 
-def process_input(class_strings : list[str], restrictions : list[str]):
+def process_input(class_strings : list[str], restrictions : list[str] = None):
   result = []
   classes = []
   grades  = []
@@ -481,7 +640,7 @@ def process_input(class_strings : list[str], restrictions : list[str]):
 # JET -- CALL THIS FUNCTION FROM THE FRONT END
 def get_schedules(input_classes : list[str]):
   classes = process_input(input_classes)
-  all_schedules = scheduling_algorithm(classes)
+  all_schedules = genetic_method(classes)
   string_schedules = [[str(section) for section in schedule] for schedule in all_schedules]
   
   # TODO return some sort of formatted data that works well with the 
@@ -527,7 +686,7 @@ DONE- Add more advanced weight selection
 7. Blacklist unwanted sections
 
 # Beta version
--3. Create variants: exact (CSP), Gibbs Sampling, Genetic
+-3. Create variants: exact (CSP), Gibbs Sampling, Genetic, Annealing
 DONE- -2. Increase API call efficiency
   -1.5. Change json so that lectures are always array, add departmental GPA fallback, add restrictions
 -1. Send algorithm to Professor Childs / Professor Mount to see if we can write an academic paper on it
