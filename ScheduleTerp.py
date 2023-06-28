@@ -422,7 +422,7 @@ def get_schedules(input_classes : list[str]):
 def main():
   print("Querying input from PlanetTerp and UMD.io...")
   # TODO query data in the background
-  my_input = ["MATH141", "CMSC132", "COMM107", "ANTH451"]
+  my_input = ["ENGL101", "CHEM135", "MATH141", "CPSG100", "ENES102H"]
   # classes = process_input(my_input)
   # # string_schedules = [[str(section) for section in schedule] for schedule in classes]
   # # print(string_schedules)
@@ -455,7 +455,7 @@ DONE- Add more advanced weight selection
 
 # Beta version
 -1. Send algorithm to Professor Childs / Professor Mount to see if we can write an academic paper on it
-  -0.5. Create variants: exact (CSP), Gibbs Sampling, Genetic
+  -0.5. Create variants: exact (CSP), Gibbs Sampling, Genetic, Annealing, Integer Linear Programming
 0. Draw out front-end using wireframing software
   1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
 2. Add boolean to exclude full classes 
