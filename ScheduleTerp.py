@@ -15,6 +15,7 @@ __status__     = "Development"
 import random
 import requests
 import re
+import json
 import numpy as np
 
 class API:
@@ -93,49 +94,99 @@ class UMDio(API):
       'per_page': 100
       })
 
+# TODO remove empty lectures from json, i.e. " -"
+# [{"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}]
 class Section:
   """Stores data for a section of a class.
   """
-  def __init__(self, section_dict : dict, grades_dict : dict, course_gpa : float) -> None:
+  def __init__(self, section_dict : dict, class_name : str) -> None:
     """Initializes the section
 
     Args:
-        section_dict (dict): section data from UMD.io API 
-        grades_dict (dict): grades data from PlanetTerp API
+        section_dict (dict): section data from ScheduleTerp API 
     """
-    self.class_name   = section_dict['course']
-    self.section_num  = section_dict['number']
-    self.instructors  = section_dict['instructors']
+    self.class_name   = class_name
+    self.section_num  = section_dict['section_num']
     self.raw_meetings = []
     self.start_times  = []
 
-    my_lectures = []
-    meetings = section_dict['meetings']
+    self.lectures = section_dict['lectures']
+    
+    # "lectures": "MWF 10:00am-10:50am"
+    # "lectures": ["TuTh 2:00pm-3:15pm", "Th 6:00pm-6:50pm"]
+    meetings : list[str] = []
+    if (isinstance(section_dict['lectures'], str)):
+      meetings.append(section_dict['lectures'])
+    else:
+      meetings.extend(section_dict['lectures'])
+    
+    
+    meetings.extend(section_dict['discussions'])
+    
     for meeting in meetings:
-      if (meeting['classtype'] != 'Discussion'):
-        my_lectures.append(meeting)
       # Extract all days for a particular meeting
-      days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
+      days = re.findall('^M|Tu|W|Th|F$', meeting)
       for day in days:
-        self.start_times.append(meeting['start_time'])
-        raw_start_time = self.__get_raw_time(meeting['start_time'], day)
-        raw_end_time = self.__get_raw_time(meeting['end_time'], day)
+        # "meeting": "MWF 10:00am-10:50am"
+        # start = "10:00am"
+        # end = "10:50am"
+        # Extract start and end times
+        start, end = meeting.split(" ")[1].split("-")
+        
+        self.start_times.append(start)
+        raw_start_time = self.__get_raw_time(start, day)
+        raw_end_time = self.__get_raw_time(end, day)
         self.raw_meetings.extend([raw_start_time, raw_end_time])
     
     self.raw_meetings.sort()
+  
+    self.gpa = section_dict["gpa"]
+    if (self.gpa == -1):
+      # Average GPA across all classes
+      self.gpa = 3.1
+      
+  
+  
+  # def __init__(self, section_dict : dict, grades_dict : dict, course_gpa : float) -> None:
+  #   """Initializes the section
+
+  #   Args:
+  #       section_dict (dict): section data from UMD.io API 
+  #       grades_dict (dict): grades data from PlanetTerp API
+  #   """
+  #   self.class_name   = section_dict['course']
+  #   self.section_num  = section_dict['number']
+  #   self.instructors  = section_dict['instructors']
+  #   self.raw_meetings = []
+  #   self.start_times  = []
+
+  #   my_lectures = []
+  #   meetings = section_dict['meetings']
+  #   for meeting in meetings:
+  #     if (meeting['classtype'] != 'Discussion'):
+  #       my_lectures.append(meeting)
+  #     # Extract all days for a particular meeting
+  #     days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
+  #     for day in days:
+  #       self.start_times.append(meeting['start_time'])
+  #       raw_start_time = self.__get_raw_time(meeting['start_time'], day)
+  #       raw_end_time = self.__get_raw_time(meeting['end_time'], day)
+  #       self.raw_meetings.extend([raw_start_time, raw_end_time])
     
-    self.lectures = []
-    for lecture in my_lectures:
-      self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) 
-                           + "-" + str(lecture['end_time']))
+  #   self.raw_meetings.sort()
     
-    if (len(self.lectures) == 1):
-      self.lectures = self.lectures[0]
+  #   self.lectures = []
+  #   for lecture in my_lectures:
+  #     self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) 
+  #                          + "-" + str(lecture['end_time']))
     
-    if (grades_dict == None or len(section_dict['instructors']) == 0):
-      self.gpa = course_gpa
-    else:
-      self.gpa = self.__get_gpa_given_prof(section_dict['instructors'], grades_dict, fallback_gpa=course_gpa)
+  #   if (len(self.lectures) == 1):
+  #     self.lectures = self.lectures[0]
+    
+  #   if (grades_dict == None or len(section_dict['instructors']) == 0):
+  #     self.gpa = course_gpa
+  #   else:
+  #     self.gpa = self.__get_gpa_given_prof(section_dict['instructors'], grades_dict, fallback_gpa=course_gpa)
     
 
   def conflicts_with_section(self, other : 'Section') -> bool:
@@ -361,48 +412,68 @@ def scheduling_algorithm(classes : list[list[Section]]):
 
   return all_schedules
 
-def process_input(class_strings : list[str]):
+def process_input(class_strings : list[str], restrictions : list[str]):
   result = []
   classes = []
   grades  = []
   average_gpas = []
   
+  data = {}
+  with open("./custom_data_dump_3.json", "r") as f:
+    data = json.load(f)
+
   for one_class in class_strings:
-    match one_class:
-      # Follow their request, but warn them that they could fulfill both Gen-Eds at once
-      case "Any":
-        pass
-      case 'FSAW' | 'FSAR' | 'FSMA' | 'FSOC' | 'DSHS' | 'DSHU' | "DSNS" | "DSNL" | 'DSSP' | 'DVCC' | 'DVUP' | 'SCIS':
-        # TODO improve speed
-        # TODO unify special + general case
-        all_gen_ed_classes = UMDio.get_courses_that_fulfill_gen_ed(one_class)
+    # data['AASP380']
+    # [{"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}, ..., {...}]
+    # data['AASP380'][0]
+    # {"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}
+    # data['AASP380'][0]['section_num']
+    # "0101"
+    section_list = []
+    
+    for section_dict in data[one_class]:
+      section_list.append(Section(section_dict, one_class))
+    
+    result.append(section_list)  
+  
+  
+  # for one_class in class_strings:
+  #   match one_class:
+  #     # Follow their request, but warn them that they could fulfill both Gen-Eds at once
+  #     case "Any":
+  #       pass
+  #     case 'FSAW' | 'FSAR' | 'FSMA' | 'FSOC' | 'DSHS' | 'DSHU' | "DSNS" | "DSNL" | 'DSSP' | 'DVCC' | 'DVUP' | 'SCIS':
+  #       # TODO improve speed
+  #       # TODO unify special + general case
+  #       # --  -- #
+  #       all_gen_ed_classes = UMDio.get_courses_that_fulfill_gen_ed(one_class)
 
-        gen_ed_sections = []
-        for course in all_gen_ed_classes:
-          gen_ed_sections.extend(UMDio.get_sections(course['course_id']))
+  #       gen_ed_sections = []
+  #       for course in all_gen_ed_classes:
+  #         gen_ed_sections.extend(UMDio.get_sections(course['course_id']))
           
-          avg_gpa, grade_dict = PlanetTerp.get_grades_from_course(course)
-          grades.extend(grade_dict)
+  #         avg_gpa, grade_dict = PlanetTerp.get_grades_from_course(course)
+  #         grades.extend(grade_dict)
           
-        average_gpas.append(avg_gpa)
+  #       average_gpas.append(avg_gpa)
           
-        classes.append(gen_ed_sections)
-      case _:
-        classes.append(UMDio.get_sections(one_class))
-        avg_gpa, grade_dict = PlanetTerp.get_grades(one_class)
-        average_gpas.append(avg_gpa)
-        grades.append(grade_dict)
+  #       classes.append(gen_ed_sections)
+  #     case _:
+  #       classes.append(UMDio.get_sections(one_class))
+  #       avg_gpa, grade_dict = PlanetTerp.get_grades(one_class)
+  #       average_gpas.append(avg_gpa)
+  #       grades.append(grade_dict)
 
 
-  for i in range(len(classes)):
-    section_arr = []
-    grade_dict = grades[i]
+  # for i in range(len(classes)):
+  #   section_arr = []
+  #   grade_dict = grades[i]
 
-    for section_dict in classes[i]:
-      # TODO maybe add check if full
-      section_arr.append(Section(section_dict, grade_dict, average_gpas[i]))
+  #   for section_dict in classes[i]:
+  #     # TODO maybe add check if full
+  #     section_arr.append(Section(section_dict, grade_dict, average_gpas[i]))
 
-    result.append(section_arr)
+  #   result.append(section_arr)
     
   return result
   
@@ -421,8 +492,9 @@ def get_schedules(input_classes : list[str]):
 
 def main():
   print("Querying input from PlanetTerp and UMD.io...")
+  
   # TODO query data in the background
-  my_input = ["MATH141", "CMSC132", "COMM107", "ANTH451"]
+  my_input = ["MATH141", "CMSC132", "CMSC131", "CMSC216", "COMM107", "ANTH451", "ENES210", "ENGL101"]
   # classes = process_input(my_input)
   # # string_schedules = [[str(section) for section in schedule] for schedule in classes]
   # # print(string_schedules)
@@ -452,10 +524,13 @@ DONE-  Set GPA
 DONE- Get our input from UMD IO + PlanetTerp
 DONE- Add more advanced weight selection 
 6. Front-end
+7. Blacklist unwanted sections
 
 # Beta version
+-3. Create variants: exact (CSP), Gibbs Sampling, Genetic
+DONE- -2. Increase API call efficiency
+  -1.5. Change json so that lectures are always array, add departmental GPA fallback, add restrictions
 -1. Send algorithm to Professor Childs / Professor Mount to see if we can write an academic paper on it
-  -0.5. Create variants: exact (CSP), Gibbs Sampling, Genetic
 0. Draw out front-end using wireframing software
   1.5. Add corresponding course restrictions (freshman connection, junior status etc.)
 2. Add boolean to exclude full classes 
@@ -464,11 +539,12 @@ DONE- Add more advanced weight selection
 4. Add Machine Learning f/ determining how good a schedule is based on classes that are in it
   4.5. Maybe consider 4 day week. Maybe ask questions about what people want as inputs for ML model
 5. Get all classes into program (HNUH, etc.) May need to talk to PlanetTerp or UMD.io
-6. Increase API call efficiency
-7. Store restrictions in Section object in score+sort, remove restricted schedules from list
-8. Choose random GenEd, or Any, or DSNS/DSHU, etc.
-  8.5. Add "CMSC4" for 400 level courses
-9.1. Add user account data (classes taken so far, fine with 8am's)
+6. Store restrictions in Section object in score+sort, remove restricted schedules from list
+  6.5. Add "x" to blacklist sections for this account (and maybe add a way to 
+  remove things from blacklist later if you change your mind)
+7. Choose random GenEd, or Any, or DSNS/DSHU, etc.
+  7.5. Add "CMSC4" for 400 level courses
+8. Add user account data (classes taken so far, fine with 8am's)
 
 ##Email to Professor:
 Hello Professor Childs,
