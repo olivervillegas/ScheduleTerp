@@ -640,4 +640,33 @@ J. Oliver Villegas
 2. ScheduleTerp+ (Users pay $$$, All small considerations, bus route to incentivize sustainable transportation, auto-register for classes)
     2.5 UMD Sustainability fund
 3. Franchise out to other universities
+
+
+
+
+
+## Scheduling Algorithms research:
+Goal: Find best algorithm for creating undergraduate student schedules, which considers
+section GPA, class time, and professsor quality.
+    
+Genetic Algorithm for Scheduling Courses
+https://link.springer.com/chapter/10.1007/978-3-662-46742-8_5
+
+Recent developments in practical course timetabling
+https://link.springer.com/chapter/10.1007/BFb0055878
+
+A comparison of annealing techniques for academic course scheduling
+https://link.springer.com/chapter/10.1007/BFb0055883
+
+Course Scheduler and Recommendation System for Students
+https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7991812
+- Aside: maybe use Collaborative Filtering to 
+
+
+Comparisons of Classifier Algorithms: Bayesian
+Network, C4.5, Decision Forest and NBTree for
+Course Registration Planning Model of
+Undergraduate Students
+https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=4811865
+
 """
