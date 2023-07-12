@@ -19,6 +19,8 @@ import re
 import json
 import numpy as np
 
+blacklisted_sections = []
+
 class API:
   headers = {
     'Accept': 'application/json'
@@ -146,49 +148,6 @@ class Section:
       # Average GPA across all classes
       self.gpa = 3.1
       
-  
-  
-  # def __init__(self, section_dict : dict, grades_dict : dict, course_gpa : float) -> None:
-  #   """Initializes the section
-
-  #   Args:
-  #       section_dict (dict): section data from UMD.io API 
-  #       grades_dict (dict): grades data from PlanetTerp API
-  #   """
-  #   self.class_name   = section_dict['course']
-  #   self.section_num  = section_dict['number']
-  #   self.instructors  = section_dict['instructors']
-  #   self.raw_meetings = []
-  #   self.start_times  = []
-
-  #   my_lectures = []
-  #   meetings = section_dict['meetings']
-  #   for meeting in meetings:
-  #     if (meeting['classtype'] != 'Discussion'):
-  #       my_lectures.append(meeting)
-  #     # Extract all days for a particular meeting
-  #     days = re.findall('^M|Tu|W|Th|F$', meeting['days'])
-  #     for day in days:
-  #       self.start_times.append(meeting['start_time'])
-  #       raw_start_time = self.__get_raw_time(meeting['start_time'], day)
-  #       raw_end_time = self.__get_raw_time(meeting['end_time'], day)
-  #       self.raw_meetings.extend([raw_start_time, raw_end_time])
-    
-  #   self.raw_meetings.sort()
-    
-  #   self.lectures = []
-  #   for lecture in my_lectures:
-  #     self.lectures.append(str(lecture['days']) + " " + str(lecture['start_time']) 
-  #                          + "-" + str(lecture['end_time']))
-    
-  #   if (len(self.lectures) == 1):
-  #     self.lectures = self.lectures[0]
-    
-  #   if (grades_dict == None or len(section_dict['instructors']) == 0):
-  #     self.gpa = course_gpa
-  #   else:
-  #     self.gpa = self.__get_gpa_given_prof(section_dict['instructors'], grades_dict, fallback_gpa=course_gpa)
-    
 
   def conflicts_with_section(self, other : 'Section') -> bool:
     """Return true if this section conflicts with the other section.
@@ -388,11 +347,28 @@ def score_and_sort_schedules(all_schedules : list[list[Section]]):
   """
   # Sort based on average GPA
   all_schedules.sort(key = lambda schedule: score_schedule(schedule))
+  
+  global blacklisted_sections
+  blacklisted_sections.append(("CMSC131", "FC05"))
+  blacklisted_sections.append(("CMSC132", "0203"))
+  
+  schedules_to_remove = []
+  for schedule in all_schedules:
+    for section in schedule:
+      if ((section.class_name, section.section_num) in blacklisted_sections):
+        schedules_to_remove.append(schedule)
+        print("Found: " + str(section.class_name + section.section_num))
+        string_schedule = [section.get_data() for section in schedule]
+        print("Removed: " + str(string_schedule))
+        break
+  
+  return [x for x in all_schedules if x not in schedules_to_remove]
+      
 
 # Different Methods
 def genetic_method(classes: list[list[Section]]):
   POPULATION_SIZE = 100
-  GENERATIONS = 100
+  GENERATIONS = 10
   MUTATION_RATE = 0.1
   
   # Generate an initial population of schedules
@@ -413,6 +389,7 @@ def genetic_method(classes: list[list[Section]]):
       
       # Replace the old population with the new generation
       population = mutated_offspring
+      print("Generation: ", generation)
   
   # Sort the final population by fitness
   population.sort(key=lambda x: evaluate_fitness([x])[0], reverse=True)
@@ -525,7 +502,7 @@ with open("./custom_data_dump_3.json", "r") as f:
   data = json.load(f)
   
 def get_random_section(section_to_replace : Section):
-  random_section = random.choice(data[section_to_replace.class_name])
+  random_section = Section(random.choice(data[section_to_replace.class_name]), section_to_replace.class_name)
   
   return random_section
   
@@ -575,7 +552,7 @@ def sampling_based_method(classes : list[list[Section]]):
       # Only add the newly generated schedule if we didn't break early.
       all_schedules.append(running_schedule)
     
-  score_and_sort_schedules(all_schedules)
+  all_schedules = score_and_sort_schedules(all_schedules)
 
   return all_schedules
 
@@ -602,45 +579,6 @@ def process_input(class_strings : list[str], restrictions : list[str] = None):
       section_list.append(Section(section_dict, one_class))
     
     result.append(section_list)  
-  
-  
-  # for one_class in class_strings:
-  #   match one_class:
-  #     # Follow their request, but warn them that they could fulfill both Gen-Eds at once
-  #     case "Any":
-  #       pass
-  #     case 'FSAW' | 'FSAR' | 'FSMA' | 'FSOC' | 'DSHS' | 'DSHU' | "DSNS" | "DSNL" | 'DSSP' | 'DVCC' | 'DVUP' | 'SCIS':
-  #       # TODO improve speed
-  #       # TODO unify special + general case
-  #       # --  -- #
-  #       all_gen_ed_classes = UMDio.get_courses_that_fulfill_gen_ed(one_class)
-
-  #       gen_ed_sections = []
-  #       for course in all_gen_ed_classes:
-  #         gen_ed_sections.extend(UMDio.get_sections(course['course_id']))
-          
-  #         avg_gpa, grade_dict = PlanetTerp.get_grades_from_course(course)
-  #         grades.extend(grade_dict)
-          
-  #       average_gpas.append(avg_gpa)
-          
-  #       classes.append(gen_ed_sections)
-  #     case _:
-  #       classes.append(UMDio.get_sections(one_class))
-  #       avg_gpa, grade_dict = PlanetTerp.get_grades(one_class)
-  #       average_gpas.append(avg_gpa)
-  #       grades.append(grade_dict)
-
-
-  # for i in range(len(classes)):
-  #   section_arr = []
-  #   grade_dict = grades[i]
-
-  #   for section_dict in classes[i]:
-  #     # TODO maybe add check if full
-  #     section_arr.append(Section(section_dict, grade_dict, average_gpas[i]))
-
-  #   result.append(section_arr)
     
   return result
   
@@ -648,7 +586,8 @@ def process_input(class_strings : list[str], restrictions : list[str] = None):
 # JET -- CALL THIS FUNCTION FROM THE FRONT END
 def get_schedules(input_classes : list[str]):
   classes = process_input(input_classes)
-  all_schedules = genetic_method(classes)
+  # all_schedules = genetic_method(classes)
+  all_schedules = sampling_based_method(classes)
   string_schedules = [[section.get_data() for section in schedule] for schedule in all_schedules]  # Array of schedules, which is an array of section objects
   
   # TODO return some sort of formatted data that works well with the 
@@ -660,7 +599,7 @@ def main():
   print("Querying input from PlanetTerp and UMD.io...")
   
   # TODO query data in the background
-  my_input = ["MATH141", "CMSC132", "CMSC131", "CMSC216", "COMM107", "ANTH451", "ENES210", "ENGL101"]
+  my_input = ["MATH141", "CMSC132", "CMSC131"]
   # classes = process_input(my_input)
   # # string_schedules = [[str(section) for section in schedule] for schedule in classes]
   # # print(string_schedules)
@@ -694,7 +633,7 @@ DONE-  Set GPA
 DONE- Get our input from UMD IO + PlanetTerp
 DONE- Add more advanced weight selection 
 6. Front-end
-7. Blacklist unwanted sections
+DONE- Blacklist unwanted sections
 
 # Beta version
 -3. Create variants: exact (CSP), Gibbs Sampling, Genetic, Annealing
@@ -716,6 +655,7 @@ DONE- -2. Increase API call efficiency
 7. Choose random GenEd, or Any, or DSNS/DSHU, etc.
   7.5. Add "CMSC4" for 400 level courses
 8. Add user account data (classes taken so far, fine with 8am's)
+9. Clean up code library
 
 ##Email to Professor:
 Hello Professor Childs,
