@@ -10,6 +10,7 @@ __maintainer__ = "Oliver Villegas, Jaxon Lee"
 __email__      = "j.oliver.vv@gmail.com, jaxondlee@gmail.com"
 __status__     = "Development"
 
+import boto3
 import json
 from scheduler import get_schedules
 
@@ -25,17 +26,20 @@ def schedule_terp(input):
 
   schedules = get_schedules(my_input)
 
-  with open('./schedules.txt', 'w') as convert_file:
-    convert_file.write(json.dumps(schedules))
-    # print('Done')
-
   return schedules
-  
 
+
+def lambda_handler(event, context):
+    message = 'Hello {} {}!'.format(event['first_name'], event['last_name'])  
+    return { 
+        'message' : message
+    }
+
+  
 def main():
   test_classes = ["ENES210", "CMSC351", "CMSC330"]
   string_schedules = schedule_terp(test_classes)
-  print(string_schedules)
+  print(json.dumps(string_schedules))
 
 if __name__ == '__main__':
   main()
