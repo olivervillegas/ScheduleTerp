@@ -32,7 +32,16 @@ def schedule_terp(input, is_dev = True):
   return schedules
   
 def lambda_handler(event, context):
-  response = main(courses=event['courses'], is_dev=False)  # This is called by an AWS Lambda function.
+  courses = []
+  response =  {
+    "isBase64Encoded": True,
+    "statusCode": 200,
+  }
+  if 'queryStringParameters' in event:
+    courses = event['queryStringParameters']['courses'].split(',')
+  else:
+    courses = event['courses']
+  response['body'] =str(main(courses=courses, is_dev=False))  # This is called by an AWS Lambda function.
   return response
 
 def main(courses=["ENES210", "CMSC351", "CMSC330"], is_dev=True):
