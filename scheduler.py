@@ -32,21 +32,29 @@ def process_input(class_strings : list[str], restrictions : list[str] = None):
   with open("./custom_data_dump_3.json", "r") as f:
     data = json.load(f)
 
-  for one_class in class_strings:
-    # data['AASP380']
-    # [{"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}, ..., {...}]
-    # data['AASP380'][0]
-    # {"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}
-    # data['AASP380'][0]['section_num']
-    # "0101"
+  # TODO: Refactor this so the logic isn't reused for one vs multiple courses.
+  if isinstance(class_strings, str):  # Only one class was input
+    one_class = class_strings
     section_list = []
-    
     for section_dict in data[one_class]:
       section_list.append(Section(section_dict, one_class))
-    
     result.append(section_list)  
-    
-  return result
+    return result 
+  else:
+    for one_class in class_strings:
+      # data['AASP380']
+      # [{"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}, ..., {...}]
+      # data['AASP380'][0]
+      # {"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}
+      # data['AASP380'][0]['section_num']
+      # "0101"
+      section_list = []
+      
+      for section_dict in data[one_class]:
+        section_list.append(Section(section_dict, one_class))
+      
+      result.append(section_list)  
+    return result
   
 
 # JET -- CALL THIS FUNCTION FROM THE FRONT END
