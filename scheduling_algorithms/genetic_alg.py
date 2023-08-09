@@ -12,6 +12,7 @@ __status__     = "Development"
 
 from section import Section, score_schedule
 from .sampling_based_alg import sampling_based_method
+from typing import List
 import random
 import json
 
@@ -25,7 +26,7 @@ def get_random_section(section_to_replace : Section):
   return random_section
 
 
-def genetic_method(classes: list[list[Section]]):
+def genetic_method(classes: List[List[Section]]):
   """_summary_
 
   Args:
@@ -80,7 +81,7 @@ def generate_initial_population(classes, population_size):
   
   return population
 
-def evaluate_fitness(population : list[list[Section]]):
+def evaluate_fitness(population : List[List[Section]]):
   """_summary_
 
   Args:
@@ -135,8 +136,8 @@ def crossover(parents):
     my_range -= 1  
   for i in range(0, my_range, 2):
     
-    parent1 : list[Section] = parents[i]
-    parent2 : list[Section] = parents[i+1]
+    parent1 : List[Section] = parents[i]
+    parent2 : List[Section] = parents[i+1]
     # TODO give score of 0 to impossible schedules
     # parent1 = [(ENES210 0101), (CMSC132 0101), (MATH141 0101), (AOSC200 0101)]
     # parent2 = [(ENES210 0102), (CMSC132 0203), (MATH141 0201), (AOSC200 0301)]
@@ -163,7 +164,7 @@ def mutation(offspring, mutation_rate):
   mutated_offspring = []
     
   for schedule in offspring:
-    mutated_schedule : list[Section] = schedule.copy()
+    mutated_schedule : List[Section] = schedule.copy()
     
     for section in mutated_schedule:
       # Generate a random number between 0 and 1

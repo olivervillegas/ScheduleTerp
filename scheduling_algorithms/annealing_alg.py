@@ -11,6 +11,7 @@ __email__      = "j.oliver.vv@gmail.com, jaxondlee@gmail.com"
 __status__     = "Development"
 
 from section import Section
+from typing import List
 
-def annealing_method(classes: list[list[Section]]):
+def annealing_method(classes: List[List[Section]]):
   pass

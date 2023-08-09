@@ -14,15 +14,16 @@ __status__     = "Development"
 
 import json
 import numpy as np
+from typing import List
 from section import Section, score_and_sort_schedules
 from scheduling_algorithms.sampling_based_alg import sampling_based_method
 from scheduling_algorithms.genetic_alg import genetic_method
 
-def constraint_satisfaction_problem_method(classes: list[list[Section]]):
+def constraint_satisfaction_problem_method(classes: List[List[Section]]):
   pass
 
 
-def process_input(class_strings : list[str], restrictions : list[str] = None):
+def process_input(class_strings : List[str], restrictions : List[str] = None):
   result = []
   classes = []
   grades  = []
@@ -50,7 +51,7 @@ def process_input(class_strings : list[str], restrictions : list[str] = None):
   
 
 # JET -- CALL THIS FUNCTION FROM THE FRONT END
-def get_schedules(input_classes : list[str]):
+def get_schedules(input_classes : List[str]):
   classes = process_input(input_classes)
   # all_schedules = genetic_method(classes)
   all_schedules = sampling_based_method(classes)

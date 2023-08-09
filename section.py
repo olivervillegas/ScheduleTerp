@@ -14,6 +14,7 @@ __status__     = "Development"
 
 import re
 import numpy as np
+from typing import List
 
 # TODO remove empty lectures from json, i.e. " -"
 # [{"section_num": "0101", "gpa": 3.28, "lectures": ["W 4:00pm-5:45pm", " -"], "discussions": []}]
@@ -35,7 +36,7 @@ class Section:
     
     # "lectures": "MWF 10:00am-10:50am"
     # "lectures": ["TuTh 2:00pm-3:15pm", "Th 6:00pm-6:50pm"]
-    meetings : list[str] = []
+    meetings : List[str] = []
     if (isinstance(section_dict['lectures'], str)):
       meetings.append(section_dict['lectures'])
     else:
@@ -139,7 +140,7 @@ class Section:
       return score
 
 
-  def __get_gpa_given_prof(self, profs : list[str], grades_dict, fallback_gpa):
+  def __get_gpa_given_prof(self, profs : List[str], grades_dict, fallback_gpa):
     """Return the Professor's average GPA for this particular section.
 
     Args:
@@ -204,7 +205,7 @@ def sig(x):
   # Modified sigmoid function so that it doesn't level off so fast.
   return 1/(1 + np.exp(-1/10 * x))
 
-def score_schedule(schedule : list[Section]):
+def score_schedule(schedule : List[Section]):
   """Scores a schedule based on its GPA, the times of each class, and their relative times.
 
   Args:
@@ -261,7 +262,7 @@ def score_schedule(schedule : list[Section]):
 
 
 blacklisted_sections = []
-def score_and_sort_schedules(all_schedules : list[list[Section]]):
+def score_and_sort_schedules(all_schedules : List[List[Section]]):
   """Sorts all schedules from best to worst based on how good they are (subjective). For now, only take into account GPA.
 
   Args:

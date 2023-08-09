@@ -11,10 +11,11 @@ __email__      = "j.oliver.vv@gmail.com, jaxondlee@gmail.com"
 __status__     = "Development"
 
 from section import Section
+from typing import List
 import random
 
 # Original method
-def sampling_based_method(classes : list[list[Section]]):
+def sampling_based_method(classes : List[List[Section]]):
   all_schedules         = []
   conflicting_schedules = []
   
