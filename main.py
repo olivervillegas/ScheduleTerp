@@ -41,7 +41,7 @@ def lambda_handler(event, context):
     courses = event['queryStringParameters']['courses'].split(',')
   else:
     courses = event['courses']
-  response['body'] =str(main(courses=courses, is_dev=False))  # This is called by an AWS Lambda function.
+  response['body'] = json.dumps(main(courses=courses, is_dev=False))  # This is called by an AWS Lambda function.
   return response
 
 def main(courses=["ENES210", "CMSC351", "CMSC330"], is_dev=True):
